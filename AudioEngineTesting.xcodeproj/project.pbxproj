@@ -24,6 +24,15 @@
 		B5D56E7324BBCC3400D6CA9E /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		B5D56E7624BBCC3400D6CA9E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B5D56E7824BBCC3400D6CA9E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B5D56E7E24BBD34900D6CA9E /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
+		B5D56E8124BBD34900D6CA9E /* AudioEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioEngine.h; sourceTree = "<group>"; };
+		B5D56E8224BBD34900D6CA9E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		B5D56E8324BBD34900D6CA9E /* AudioChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChannel.swift; sourceTree = "<group>"; };
+		B5D56E8424BBD34900D6CA9E /* AudioQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioQueue.swift; sourceTree = "<group>"; };
+		B5D56E8524BBD34900D6CA9E /* AudioTrack.Fade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.Fade.swift; sourceTree = "<group>"; };
+		B5D56E8624BBD34900D6CA9E /* AudioMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioMixer.swift; sourceTree = "<group>"; };
+		B5D56E8724BBD34900D6CA9E /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
+		B5D56E8824BBD34900D6CA9E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,6 +49,8 @@
 		B5D56E5E24BBCC3300D6CA9E = {
 			isa = PBXGroup;
 			children = (
+				B5D56E7E24BBD34900D6CA9E /* Package.swift */,
+				B5D56E7F24BBD34900D6CA9E /* Source */,
 				B5D56E6924BBCC3300D6CA9E /* AudioEngineTesting */,
 				B5D56E6824BBCC3300D6CA9E /* Products */,
 			);
@@ -73,6 +84,29 @@
 				B5D56E7324BBCC3400D6CA9E /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		B5D56E7F24BBD34900D6CA9E /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				B5D56E8024BBD34900D6CA9E /* AudioEngine */,
+			);
+			path = Source;
+			sourceTree = "<group>";
+		};
+		B5D56E8024BBD34900D6CA9E /* AudioEngine */ = {
+			isa = PBXGroup;
+			children = (
+				B5D56E8124BBD34900D6CA9E /* AudioEngine.h */,
+				B5D56E8224BBD34900D6CA9E /* AudioPlayer.swift */,
+				B5D56E8324BBD34900D6CA9E /* AudioChannel.swift */,
+				B5D56E8424BBD34900D6CA9E /* AudioQueue.swift */,
+				B5D56E8524BBD34900D6CA9E /* AudioTrack.Fade.swift */,
+				B5D56E8624BBD34900D6CA9E /* AudioMixer.swift */,
+				B5D56E8724BBD34900D6CA9E /* AudioTrack.swift */,
+				B5D56E8824BBD34900D6CA9E /* Info.plist */,
+			);
+			path = AudioEngine;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
