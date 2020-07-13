@@ -47,13 +47,16 @@ class AudioPlayer: NSObject {
 		return "Empty Player"
 	}
 	
-	func preload() throws {
-		guard self.player == nil, let track = self.track, !track.isSilence else { return }
-		
+	@discardableResult
+	func preload() throws -> Self {
+		guard self.player == nil, let track = self.track, !track.isSilence else { return self }
+		log("preflighting \(track)", .verbose)
+
 		self.player = try AVAudioPlayer(contentsOf: track.url)
 		self.player?.prepareToPlay()
 		log(.break, .verbose)
 		log("ready to play \(track)", .verbose)
+		return self
 	}
 	
 	@discardableResult

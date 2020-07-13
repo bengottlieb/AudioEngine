@@ -24,7 +24,7 @@ public class AudioChannel: ObservableObject {
 	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
 	
 	public var currentTrackIndex: Int?
-	public var stoppedAt: TimeInterval = 0
+	public var stoppedAt: TimeInterval?
 	private var pendingTrackIndex: Int?
 	
 	private var availablePlayers: Set<AudioPlayer> = []
@@ -47,10 +47,13 @@ public class AudioChannel: ObservableObject {
 	
 	public func start(at date: Date = Date()) {
 		if self.isPlaying { return }			// already playing
+		log("starting channel \(self.name)", .verbose)
+
 		self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
 		self.startedAt = date
 		self.startNextTrack()
 		self.isPlaying = true
+		log("beginning channel \(self.name)", .verbose)
 	}
 	
 	public func stop() {
@@ -134,6 +137,7 @@ public class AudioChannel: ObservableObject {
 		do {
 			currentPlayer = try self.newPlayer()
 				.load(track: track, into: self)
+				.preload()
 				.start(fadeIn: fadeIn, fadeOut: fadeOut)
 			
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
