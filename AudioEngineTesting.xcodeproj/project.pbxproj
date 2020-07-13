@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 52;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -13,6 +13,13 @@
 		B5D56E7124BBCC3400D6CA9E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B5D56E7024BBCC3400D6CA9E /* Assets.xcassets */; };
 		B5D56E7424BBCC3400D6CA9E /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B5D56E7324BBCC3400D6CA9E /* Preview Assets.xcassets */; };
 		B5D56E7724BBCC3400D6CA9E /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B5D56E7524BBCC3400D6CA9E /* LaunchScreen.storyboard */; };
+		B5D56EB424BBE8A200D6CA9E /* Suite in Frameworks */ = {isa = PBXBuildFile; productRef = B5D56EB324BBE8A200D6CA9E /* Suite */; };
+		B5D56EB524BBE8AD00D6CA9E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D56E8224BBD34900D6CA9E /* AudioPlayer.swift */; };
+		B5D56EB624BBE8AD00D6CA9E /* AudioQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D56E8424BBD34900D6CA9E /* AudioQueue.swift */; };
+		B5D56EB724BBE8AD00D6CA9E /* AudioTrack.Fade.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D56E8524BBD34900D6CA9E /* AudioTrack.Fade.swift */; };
+		B5D56EB824BBE8AD00D6CA9E /* AudioMixer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D56E8624BBD34900D6CA9E /* AudioMixer.swift */; };
+		B5D56EB924BBE8AD00D6CA9E /* AudioChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D56E8324BBD34900D6CA9E /* AudioChannel.swift */; };
+		B5D56EBA24BBE8AD00D6CA9E /* AudioTrack.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D56E8724BBD34900D6CA9E /* AudioTrack.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,14 +32,12 @@
 		B5D56E7624BBCC3400D6CA9E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B5D56E7824BBCC3400D6CA9E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B5D56E7E24BBD34900D6CA9E /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
-		B5D56E8124BBD34900D6CA9E /* AudioEngine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioEngine.h; sourceTree = "<group>"; };
 		B5D56E8224BBD34900D6CA9E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		B5D56E8324BBD34900D6CA9E /* AudioChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChannel.swift; sourceTree = "<group>"; };
 		B5D56E8424BBD34900D6CA9E /* AudioQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioQueue.swift; sourceTree = "<group>"; };
 		B5D56E8524BBD34900D6CA9E /* AudioTrack.Fade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.Fade.swift; sourceTree = "<group>"; };
 		B5D56E8624BBD34900D6CA9E /* AudioMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioMixer.swift; sourceTree = "<group>"; };
 		B5D56E8724BBD34900D6CA9E /* AudioTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrack.swift; sourceTree = "<group>"; };
-		B5D56E8824BBD34900D6CA9E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -40,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B5D56EB424BBE8A200D6CA9E /* Suite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,14 +103,12 @@
 		B5D56E8024BBD34900D6CA9E /* AudioEngine */ = {
 			isa = PBXGroup;
 			children = (
-				B5D56E8124BBD34900D6CA9E /* AudioEngine.h */,
 				B5D56E8224BBD34900D6CA9E /* AudioPlayer.swift */,
 				B5D56E8324BBD34900D6CA9E /* AudioChannel.swift */,
 				B5D56E8424BBD34900D6CA9E /* AudioQueue.swift */,
 				B5D56E8524BBD34900D6CA9E /* AudioTrack.Fade.swift */,
 				B5D56E8624BBD34900D6CA9E /* AudioMixer.swift */,
 				B5D56E8724BBD34900D6CA9E /* AudioTrack.swift */,
-				B5D56E8824BBD34900D6CA9E /* Info.plist */,
 			);
 			path = AudioEngine;
 			sourceTree = "<group>";
@@ -125,6 +129,9 @@
 			dependencies = (
 			);
 			name = AudioEngineTesting;
+			packageProductDependencies = (
+				B5D56EB324BBE8A200D6CA9E /* Suite */,
+			);
 			productName = AudioEngineTesting;
 			productReference = B5D56E6724BBCC3300D6CA9E /* AudioEngineTesting.app */;
 			productType = "com.apple.product-type.application";
@@ -152,6 +159,9 @@
 				Base,
 			);
 			mainGroup = B5D56E5E24BBCC3300D6CA9E;
+			packageReferences = (
+				B5D56EB224BBE8A200D6CA9E /* XCRemoteSwiftPackageReference "Suite" */,
+			);
 			productRefGroup = B5D56E6824BBCC3300D6CA9E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -179,9 +189,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B5D56EB924BBE8AD00D6CA9E /* AudioChannel.swift in Sources */,
+				B5D56EB824BBE8AD00D6CA9E /* AudioMixer.swift in Sources */,
 				B5D56E6B24BBCC3300D6CA9E /* AppDelegate.swift in Sources */,
+				B5D56EB724BBE8AD00D6CA9E /* AudioTrack.Fade.swift in Sources */,
+				B5D56EB624BBE8AD00D6CA9E /* AudioQueue.swift in Sources */,
 				B5D56E6D24BBCC3300D6CA9E /* SceneDelegate.swift in Sources */,
 				B5D56E6F24BBCC3300D6CA9E /* ContentView.swift in Sources */,
+				B5D56EB524BBE8AD00D6CA9E /* AudioPlayer.swift in Sources */,
+				B5D56EBA24BBE8AD00D6CA9E /* AudioTrack.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -379,6 +395,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B5D56EB224BBE8A200D6CA9E /* XCRemoteSwiftPackageReference "Suite" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bengottlieb/Suite.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.51;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B5D56EB324BBE8A200D6CA9E /* Suite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B5D56EB224BBE8A200D6CA9E /* XCRemoteSwiftPackageReference "Suite" */;
+			productName = Suite;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B5D56E5F24BBCC3300D6CA9E /* Project object */;
 }
