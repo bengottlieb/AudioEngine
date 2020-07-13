@@ -60,7 +60,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	
 	func duration(for fade: Fade) -> TimeInterval {
 		guard let duration = fade.duration else { return 0 }
-		if duration > self.duration / 2 { return 0 }
+		if duration > self.duration / 2 { return self.duration / 2 }
 		return duration
 	}
 

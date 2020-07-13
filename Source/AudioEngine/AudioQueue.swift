@@ -38,6 +38,11 @@ public struct AudioQueue {
 		self.tracks = []
 	}
 	
+	public subscript(index: Int) -> AudioTrack? {
+		if index >= self.count { return nil }
+		return self.tracks[index]
+	}
+	
 	public var count: Int { tracks.count }
 	public func firstIndex(of track: AudioTrack) -> Int? { tracks.firstIndex(of: track) }
 	public var last: AudioTrack? { self.tracks.last }

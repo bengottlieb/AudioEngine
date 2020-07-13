@@ -37,6 +37,9 @@ class AudioPlayer: NSObject {
 	
 	func stop() {
 		self.player?.stop()
+		self.fadeInTimer?.invalidate()
+		self.fadeOutTimer?.invalidate()
+		self.endTimer?.invalidate()
 	}
 	
 	override var description: String {
@@ -96,6 +99,7 @@ class AudioPlayer: NSObject {
 			}
 		} else {
 			if fadingIn {
+				self.play(at: track.volume)
 				self.didStartPlaying()
 				self.didFinishFadeIn()
 			} else {
