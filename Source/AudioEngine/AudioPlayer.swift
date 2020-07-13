@@ -21,6 +21,11 @@ class AudioPlayer: NSObject {
 	weak var fadeOutTimer: Timer?
 	weak var endTimer: Timer?
 	
+	var timeRemaining: TimeInterval {
+		guard let player = self.player else { return 0 }
+		return player.duration - player.currentTime
+	}
+	
 	@discardableResult
 	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
 		self.track = track
@@ -43,9 +48,9 @@ class AudioPlayer: NSObject {
 		guard self.player == nil, let track = self.track, !track.isSilence else { return }
 		
 		self.player = try AVAudioPlayer(contentsOf: track.url)
-//		self.player?.prepareToPlay()
-		log(.break)
-		log("ready to play \(track)")
+		self.player?.prepareToPlay()
+		log(.break, .verbose)
+		log("ready to play \(track)", .verbose)
 	}
 	
 	@discardableResult
@@ -78,7 +83,7 @@ class AudioPlayer: NSObject {
 		let duration = track.duration(for: fade)
 		
 		if duration > 0 {
-			log("Fading \(self) from \(self.currentVolume) to \(volume)")
+			log("Fading \(self) from \(self.currentVolume) to \(volume)", .verbose)
 			self.fadeInTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishFadeIn() }
 			self.player?.volume = Float(self.currentVolume)
 			self.currentVolume = volume

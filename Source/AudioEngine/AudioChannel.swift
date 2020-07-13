@@ -12,20 +12,25 @@ public class AudioChannel: ObservableObject {
 	public let name: String
 	public private(set) var startedAt: Date?
 	@Published public var isPlaying = false { didSet { if isPlaying != (startedAt != nil) { self.toggle() }}}
-	
 	@Published public var queue = AudioQueue()
+	@Published public var currentTrack: AudioTrack?
+	
 	public var fadeIn: AudioTrack.Fade?
 	public var fadeOut: AudioTrack.Fade?
-	public var shouldCrossFade = false
-	private var inheritedFadeIn: AudioTrack.Fade? { fadeIn ?? AudioMixer.instance.fadeIn }
-	private var inheritedFadeOut: AudioTrack.Fade? { fadeOut ?? AudioMixer.instance.fadeOut }
+	public var shouldCrossFade = true
+	private var inheritedFadeIn: AudioTrack.Fade { fadeIn ?? AudioMixer.instance.fadeIn }
+	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
+	
+	public var currentDuration: TimeInterval = 0
+	public var currentTrackIndex: Int?
+	private var pendingTrackIndex: Int?
+	
+	private var availablePlayers: Set<AudioPlayer> = []
+	private var currentPlayer: AudioPlayer? { didSet { self.currentTrack = currentPlayer?.track }}
+	private var fadingOutPlayer: AudioPlayer?
+	private weak var transitionTimer: Timer?
+	
 
-	
-	var playerFadingIn: AudioPlayer? { didSet { if playerFadingIn != oldValue { log("set fadingIn to \(playerFadingIn?.track?.name ?? "--")") }}}
-	var playerCurrent: AudioPlayer? { didSet { if playerCurrent != oldValue { log("set current to \(playerCurrent?.track?.name ?? "--")") }}}
-	var playerFadingOut: AudioPlayer? { didSet { if playerFadingOut != oldValue { log("set fadingOut to \(playerFadingOut?.track?.name ?? "--")") }}}
-	var availablePlayers: Set<AudioPlayer> = []
-	
 	public static func channel(named name: String) -> AudioChannel {
 		if let existing = AudioMixer.instance.channels[name] { return existing }
 		
@@ -39,15 +44,24 @@ public class AudioChannel: ObservableObject {
 	}
 	
 	func start(at date: Date) {
+		if self.isPlaying { return }			// already playing
+		self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
 		self.startedAt = date
-		self.play(next: false)
+		self.startNextTrack()
 		self.isPlaying = true
 	}
 	
 	func stop() {
+		self.fadingOutPlayer?.stop()
+		self.currentPlayer?.stop()
+		
 		self.startedAt = nil
+		self.currentTrackIndex = nil
 		self.isPlaying = false
 	}
+	
+	public var timeElapsed: TimeInterval { abs(self.startedAt?.timeIntervalSinceNow ?? 0) }
+	public var timeRemaining: TimeInterval { currentDuration - timeElapsed }
 	
 	public func enqueue(track: AudioTrack) {
 		self.queue.append(track)
@@ -70,34 +84,50 @@ public class AudioChannel: ObservableObject {
 	
 	func ended() {
 		guard let startedAt = self.startedAt else { return }
-		
-		log("\(self) has ended. Took \(abs(startedAt.timeIntervalSinceNow)), expected \(queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)).")
+		self.stop()
+
+		log("\(self) has ended. Took \(abs(startedAt.timeIntervalSinceNow)), expected \(queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)).", .verbose)
 		self.startedAt = nil
 	}
 	
-	func play(next: Bool, endingCurrent: Bool = false) {
-		guard let offset = self.startedAt?.timeIntervalSinceNow, var track = self.track(at: offset) else {
+	func startNextTrack() {
+		if let current = self.currentTrackIndex {
+			self.currentTrackIndex = current + 1
+		} else {
+			self.currentTrackIndex = 0
+		}
+		
+		fadingOutPlayer = currentPlayer
+		currentPlayer = nil
+
+		guard let index = self.currentTrackIndex, index < self.queue.count else {
 			self.ended()
 			return
 		}
 		
-		if next {
-			guard let nextTrack = self.track(after: track) else { return }
-			track = nextTrack
+		let track = self.queue.tracks[index]
+		let fadeOut = track.fadeOut ?? self.inheritedFadeOut
+		let fadeIn = track.fadeIn ?? self.inheritedFadeIn
+
+		var transitionTime = track.duration
+		if self.shouldCrossFade, index < self.queue.count - 1 {
+			let next = self.queue.tracks[index + 1]
+			let fadeOutDuration = track.duration(for: fadeOut)
+			let nextFadeIn = next.fadeIn ?? self.inheritedFadeIn
+			let fadeInDuration = next.duration(for: nextFadeIn)
+			transitionTime -= (fadeInDuration + fadeOutDuration) / 2
 		}
 		
-		let fadeIn = track.fadeIn ?? self.fadeIn ?? AudioMixer.instance.fadeIn
-		let fadeOut = track.fadeOut ?? self.fadeOut ?? AudioMixer.instance.fadeOut
-		
-		if endingCurrent {
-			self.end(player: self.playerFadingIn)
-		}
 		do {
-			self.playerFadingIn = try self.newPlayer()
+			currentPlayer = try self.newPlayer()
 				.load(track: track, into: self)
 				.start(fadeIn: fadeIn, fadeOut: fadeOut)
+			
+			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
+				self.startNextTrack()
+			})
 		} catch {
-			self.playerFadingIn = nil
+			currentPlayer = nil
 		}
 	}
 	
@@ -140,40 +170,18 @@ extension AudioChannel {
 	}
 
 	func playbackStarted(for player: AudioPlayer) {
-		log("Playback started for \(player.track?.name ?? "--")")
-		assert(self.playerCurrent == nil || self.playerCurrent == player, "active player mismatch")
-		self.playerCurrent = player
+		log("Playback started for \(player.track?.name ?? "--")", .verbose)
 	}
 	
 	func fadeInCompleted(for player: AudioPlayer) {
-		log("Fade In ended for \(player.track?.name ?? "--")")
-		if player == self.playerFadingIn {
-			self.playerFadingIn = nil
-			self.playerCurrent = player
-		}
+		log("Fade In ended for \(player.track?.name ?? "--")", .verbose)
 	}
 
 	func fadeOutBegan(for player: AudioPlayer) {
-		log("Fade out started for \(player.track?.name ?? "--")")
-		if player == self.playerCurrent {
-			self.playerCurrent = nil
-			self.playerFadingOut = player
-			if shouldCrossFade, !isLastTrack(player.track) { self.play(next: true) }
-		}
+		log("Fade out started for \(player.track?.name ?? "--")", .verbose)
 	}
 
 	func playbackEnded(for player: AudioPlayer) {
-		log("Playback ended for \(player.track?.name ?? "--")")
-		if player == self.playerCurrent { self.playerCurrent = nil }
-		if player == self.playerFadingIn { self.playerFadingIn = nil }
-		if player == self.playerFadingOut { self.playerFadingOut = nil }
-
-		if self.playerFadingIn == nil, self.playerCurrent == nil {
-			if !isLastTrack(player.track) {
-				self.play(next: false, endingCurrent: true)
-			} else {
-				self.ended()
-			}
-		}
+		log("Playback ended for \(player.track?.name ?? "--")", .verbose)
 	}
 }
