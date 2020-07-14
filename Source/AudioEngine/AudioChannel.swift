@@ -77,12 +77,12 @@ public class AudioChannel: ObservableObject {
 		return currentDuration - abs(startedAt.timeIntervalSinceNow)
 	}
 	
+	public func setQueue(_ queue: AudioQueue) {
+		self.queue = queue
+	}
+	
 	public func enqueue(track: AudioTrack, fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil) {
-		var newTrack = track
-		
-		if let fadeIn = fadeIn { newTrack.fadeIn = fadeIn }
-		if let fadeOut = fadeOut { newTrack.fadeOut = fadeOut }
-		self.queue.append(newTrack)
+		self.queue.append(track, fadeIn: fadeIn, fadeOut: fadeOut)
 	}
 	
 	public func clearQueue() {

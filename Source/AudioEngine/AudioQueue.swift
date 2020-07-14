@@ -30,8 +30,13 @@ public struct AudioQueue {
 		self.tracks = tracks
 	}
 	
-	mutating public func append(_ track: AudioTrack) {
-		self.tracks.append(track)
+	mutating public func append(_ track: AudioTrack, fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil) {
+		var newTrack = track
+		
+		if let fadeIn = fadeIn { newTrack.fadeIn = fadeIn }
+		if let fadeOut = fadeOut { newTrack.fadeOut = fadeOut }
+
+		self.tracks.append(newTrack)
 	}
 	
 	mutating public func clear() {
