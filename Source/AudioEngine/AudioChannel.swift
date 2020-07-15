@@ -180,25 +180,3 @@ public class AudioChannel: ObservableObject {
 		return nil
 	}
 }
-
-extension AudioChannel {
-	func isLastTrack(_ track: AudioTrack?) -> Bool {
-		track == self.queue.last
-	}
-
-	func playbackStarted(for player: AudioPlayer) {
-		log("Playback started for \(player.track?.name ?? "--")", .verbose)
-	}
-	
-	func fadeInCompleted(for player: AudioPlayer) {
-		log("Fade In ended for \(player.track?.name ?? "--")", .verbose)
-	}
-
-	func fadeOutBegan(for player: AudioPlayer) {
-		log("Fade out started for \(player.track?.name ?? "--")", .verbose)
-	}
-
-	func playbackEnded(for player: AudioPlayer) {
-		log("Playback ended for \(player.track?.name ?? "--")", .verbose)
-	}
-}
