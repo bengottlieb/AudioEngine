@@ -28,7 +28,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public var fadeIn: Fade?
 	public var fadeOut: Fade?
 	public let asset: AVURLAsset
-	public private(set) var duration: TimeInterval = 0												// this is the actual duration the associated audio
+	public var duration: TimeInterval = 0												// this is the actual duration the associated audio
 	public var requestedRange: Range<TimeInterval>?													// if only part of it is required
 	public var effectiveDuration: TimeInterval { requestedRange?.delta ?? duration }		// the total amount of time the sound should be played for
 	public var isSilence: Bool { self.url == Self.silenceURL }

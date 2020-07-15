@@ -26,8 +26,13 @@ import Foundation
 public struct AudioQueue {
 	public var tracks: [AudioTrack]
 	
-	public init(tracks: [AudioTrack] = []) {
-		self.tracks = tracks
+	public var useLoops = false
+	public init(tracks: [AudioTrack] = [], fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil, useLoops: Bool = false) {
+		self.tracks = []
+		self.useLoops = useLoops
+		tracks.forEach {
+			self.append($0, fadeIn: fadeIn, fadeOut: fadeOut)
+		}
 	}
 	
 	mutating public func append(_ track: AudioTrack, fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil) {
@@ -36,7 +41,14 @@ public struct AudioQueue {
 		if let fadeIn = fadeIn { newTrack.fadeIn = fadeIn }
 		if let fadeOut = fadeOut { newTrack.fadeOut = fadeOut }
 
-		self.tracks.append(newTrack)
+		if useLoops, let lastTrack = self.tracks.last, lastTrack == track {
+			newTrack = lastTrack
+			newTrack.duration += track.duration
+			newTrack.fadeOut = track.fadeOut
+			self.tracks[self.tracks.count - 1] = newTrack
+		} else {
+			self.tracks.append(newTrack)
+		}
 	}
 	
 	mutating public func clear() {

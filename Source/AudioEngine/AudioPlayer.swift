@@ -36,6 +36,7 @@ class AudioPlayer: NSObject {
 	}
 	
 	func stop() {
+		self.player?.volume = 0
 		self.player?.stop()
 		self.fadeInTimer?.invalidate()
 		self.fadeOutTimer?.invalidate()
@@ -52,8 +53,10 @@ class AudioPlayer: NSObject {
 		guard self.player == nil, let track = self.track, !track.isSilence else { return self }
 		log("preflighting \(track)", .verbose)
 
-		self.player = try AVAudioPlayer(contentsOf: track.url)
-		self.player?.prepareToPlay()
+		let player = try AVAudioPlayer(contentsOf: track.url)
+		self.player = player
+		player.prepareToPlay()
+		if track.duration > player.duration { player.numberOfLoops = -1 }
 		log(.break, .verbose)
 		log("ready to play \(track)", .verbose)
 		return self
@@ -78,9 +81,20 @@ class AudioPlayer: NSObject {
 		if duration > 0 {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
 		} else {
-			self.endTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration, repeats: false) { _ in self.didFinishPlaying() }
+			self.endTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - softStopDuration, repeats: false) { _ in self.softStop() }
 		}
 		return self
+	}
+	
+	let softStopDuration = 0.0
+	func softStop() {
+		guard let player = self.player, player.isPlaying else { return }
+		
+		player.setVolume(0.0, fadeDuration: softStopDuration)
+		DispatchQueue.main.asyncAfter(deadline: .now() + softStopDuration) {
+			self.stop()
+			self.didFinishPlaying()
+		}
 	}
 	
 	func applyFade(in fadingIn: Bool, to volume: Double) {
@@ -134,9 +148,10 @@ class AudioPlayer: NSObject {
 	}
 	
 	func play(at volume: Double) {
+		self.player?.volume = 0
+		self.player?.play()
 		self.currentVolume = volume
 		self.player?.volume = Float(volume)
-		self.player?.play()
 		self.didStartPlaying()
 	}
 }
