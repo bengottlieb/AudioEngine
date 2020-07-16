@@ -32,7 +32,6 @@ extension AudioTrack {
 		
 		public init(from decoder: Decoder) throws {
 			let container = try decoder.container(keyedBy: CodingKeys.self)
-			
 			let raw = try container.decode(String.self, forKey: .name)
 			switch raw {
 			case "abrupt": self = .abrupt

@@ -54,10 +54,17 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		return self
 	}
 	
+	func buildPlayer(in channel: AudioChannel, fadeIn: Fade?, fadeOut: Fade?) throws -> AudioPlayer {
+		try AudioTrackPlayer()
+			.load(track: self.adjustingFade(in: fadeIn, out: fadeOut), into: channel)
+			.preload()
+
+	}
+	
 	static func silence(duration: TimeInterval) -> AudioTrack { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }
 	
-	func duration(for fade: Fade) -> TimeInterval {
-		guard let duration = fade.duration else { return 0 }
+	func duration(for fade: Fade?) -> TimeInterval {
+		guard let duration = fade?.duration else { return 0 }
 		if duration > self.duration / 2 { return self.duration / 2 }
 		return duration
 	}

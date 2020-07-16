@@ -27,7 +27,7 @@ public class AudioChannel: ObservableObject {
 	public var stoppedAt: TimeInterval?
 	private var pendingTrackIndex: Int?
 	
-	private var availablePlayers: Set<AudioPlayer> = []
+	//private var availablePlayers: Set<Player> = []
 	private var currentPlayer: AudioPlayer? { didSet { self.currentTrack = currentPlayer?.track }}
 	private var fadingOutPlayer: AudioPlayer?
 	private weak var transitionTimer: Timer?
@@ -123,21 +123,19 @@ public class AudioChannel: ObservableObject {
 			return
 		}
 		
-		let fadeOut = track.fadeOut ?? self.inheritedFadeOut
-		let fadeIn = track.fadeIn ?? self.inheritedFadeIn
+//		let fadeOut = track.fadeOut ?? self.inheritedFadeOut
+//		let fadeIn = track.fadeIn ?? self.inheritedFadeIn
 
 		var transitionTime = track.duration
 		if self.shouldCrossFade, let next = self.queue[index + 1] {
-			let fadeOutDuration = track.duration(for: fadeOut)
+			let fadeOutDuration = track.duration(for: track.fadeOut)
 			let nextFadeIn = next.fadeIn ?? self.inheritedFadeIn
 			let fadeInDuration = next.duration(for: nextFadeIn)
 			transitionTime -= (fadeInDuration + fadeOutDuration) / 2
 		}
 		
 		do {
-			currentPlayer = try self.newPlayer()
-				.load(track: track, into: self, fadeIn: fadeIn, fadeOut: fadeOut)
-				.preload()
+			currentPlayer = try self.newPlayer(for: track)
 				.start()
 			
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
@@ -151,16 +149,16 @@ public class AudioChannel: ObservableObject {
 	func end(player: AudioPlayer?) {
 		guard let player = player else { return }
 		player.stop()
-		self.availablePlayers.insert(player)
+	//	self.availablePlayers.insert(player)
 	}
 	
-	func newPlayer() -> AudioPlayer {
-		if let next = self.availablePlayers.first {
-			self.availablePlayers.remove(next)
-			return next
-		}
+	func newPlayer(for track: AudioTrack) throws -> AudioPlayer {
+//		if let next = self.availablePlayers.first {
+//			self.availablePlayers.remove(next)
+//			return next
+//		}
 		
-		return AudioPlayer()
+		return try track.buildPlayer(in: self, fadeIn: track.fadeIn ?? inheritedFadeIn, fadeOut: track.fadeOut ?? inheritedFadeOut)
 	}
 	
 	func track(at offset: TimeInterval) -> AudioTrack? {
