@@ -9,25 +9,25 @@ import Suite
 
 class AudioPlayer: NSObject {
 	var track: AudioTrack?
-	var fadeIn: AudioTrack.Fade = .constantPower(0.5)
-	var fadeOut: AudioTrack.Fade = .constantPower(0.5)
 	var player: AVAudioPlayer?
 	var currentVolume = 0.0
 	var startedAt: TimeInterval?
-	var isPlaying: Bool { startedAt != nil }
-	
 	weak var channel: AudioChannel?
 	weak var fadeOutTimer: Timer?
 	weak var endTimer: Timer?
 
+	var isPlaying: Bool { startedAt != nil }
+	
 	var timeRemaining: TimeInterval {
 		guard let player = self.player else { return 0 }
 		return player.duration - player.currentTime
 	}
 	
+	deinit { self.stop() }
+	
 	@discardableResult
-	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
-		self.track = track
+	func load(track: AudioTrack, into channel: AudioChannel, fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil) -> Self {
+		self.track = track.adjustingFade(in: fadeIn, out: fadeOut)
 		self.channel = channel
 		return self
 	}
@@ -47,7 +47,6 @@ class AudioPlayer: NSObject {
 	@discardableResult
 	func preload() throws -> Self {
 		guard self.player == nil, let track = self.track, !track.isSilence else { return self }
-		log("preflighting \(track)", .verbose)
 
 		let player = try AVAudioPlayer(contentsOf: track.url)
 		self.player = player
@@ -59,20 +58,17 @@ class AudioPlayer: NSObject {
 	}
 	
 	@discardableResult
-	func start(fadeIn: AudioTrack.Fade = .constantPower(0.5), fadeOut: AudioTrack.Fade = .constantPower(0.5)) throws -> Self {
+	func start() throws -> Self {
 		guard let track = self.track else { return self }
 		try self.preload()
-		
-		self.fadeIn = fadeIn
-		self.fadeOut = fadeOut
 
-		if self.fadeIn.exists {
+		if track.fadeIn?.exists == true {
 			self.applyFade(in: true, to: track.volume)
 		} else {
 			self.play(at: track.volume)
 		}
 		
-		let duration = track.duration(for: fadeOut)
+		let duration = track.duration(for: track.fadeOut ?? .default)
 		if duration > 0 {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
 		}
@@ -81,8 +77,8 @@ class AudioPlayer: NSObject {
 
 	func applyFade(in fadingIn: Bool, to volume: Double) {
 		guard let track = self.track, let player = self.player else { return }
-		let fade = fadingIn ? fadeIn : fadeOut
-		let duration = track.duration(for: fade)
+		let fade = fadingIn ? track.fadeIn : track.fadeOut
+		let duration = track.duration(for: fade ?? .default)
 		
 		if duration > 0 {
 			log("Fading \(self) from \(self.currentVolume) to \(volume)", .verbose)
@@ -113,7 +109,6 @@ class AudioPlayer: NSObject {
 				self.player?.volume = Float(newVolume)
 			}
 		}
-		
 	}
 	
 	func play(at volume: Double) {
@@ -125,9 +120,8 @@ class AudioPlayer: NSObject {
 }
 
 extension AudioPlayer {
-	func didFinishPlaying() {
-		print("Finished playing \(track!)")
-	}
+	func didFinishPlaying() { log("Finished playing \(track!)") }
+	
 	func didBeginFadeOut(_ duration: TimeInterval) {
 		applyFade(in: false, to: 0)
 	}

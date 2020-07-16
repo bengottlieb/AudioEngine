@@ -90,7 +90,7 @@ public class AudioChannel: ObservableObject {
 		self.queue.clear()
 	}
 	
-	func toggle() {
+	public func toggle() {
 		if self.isPlaying {
 			self.stop()
 		} else {
@@ -136,9 +136,9 @@ public class AudioChannel: ObservableObject {
 		
 		do {
 			currentPlayer = try self.newPlayer()
-				.load(track: track, into: self)
+				.load(track: track, into: self, fadeIn: fadeIn, fadeOut: fadeOut)
 				.preload()
-				.start(fadeIn: fadeIn, fadeOut: fadeOut)
+				.start()
 			
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
 				self.startNextTrack()

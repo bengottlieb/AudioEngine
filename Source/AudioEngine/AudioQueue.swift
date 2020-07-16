@@ -8,9 +8,7 @@
 
 import Foundation
 
-/*
-
-	[-------------------------------------------------------------------]		// total duration
+/* [-------------------------------------------------------------------]		// total duration
 1:	[- in -][-- main --][- out -]
 2:							   [- in-][-- main --][-out-]
 3:													   [-- in --][-- main --][- out -]
@@ -21,12 +19,17 @@ import Foundation
 	occur at the same time as the midpoint of the fade out.
 */
 
-
-
 public struct AudioQueue {
 	public var tracks: [AudioTrack]
-	
 	public var useLoops = false
+	public var count: Int { tracks.count }
+	public var last: AudioTrack? { self.tracks.last }
+
+	public subscript(index: Int) -> AudioTrack? { index < tracks.count ? tracks[index] : nil }
+
+	public func firstIndex(of track: AudioTrack) -> Int? { tracks.firstIndex(of: track) }
+	mutating public func clear() { self.tracks = [] }
+
 	public init(tracks: [AudioTrack] = [], fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil, useLoops: Bool = false) {
 		self.tracks = []
 		self.useLoops = useLoops
@@ -36,10 +39,7 @@ public struct AudioQueue {
 	}
 	
 	mutating public func append(_ track: AudioTrack, fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil) {
-		var newTrack = track
-		
-		if let fadeIn = fadeIn { newTrack.fadeIn = fadeIn }
-		if let fadeOut = fadeOut { newTrack.fadeOut = fadeOut }
+		var newTrack = track.adjustingFade(in: fadeIn, out: fadeOut)
 
 		if useLoops, let lastTrack = self.tracks.last, lastTrack == track {
 			newTrack = lastTrack
@@ -50,20 +50,7 @@ public struct AudioQueue {
 			self.tracks.append(newTrack)
 		}
 	}
-	
-	mutating public func clear() {
-		self.tracks = []
-	}
-	
-	public subscript(index: Int) -> AudioTrack? {
-		if index >= self.count { return nil }
-		return self.tracks[index]
-	}
-	
-	public var count: Int { tracks.count }
-	public func firstIndex(of track: AudioTrack) -> Int? { tracks.firstIndex(of: track) }
-	public var last: AudioTrack? { self.tracks.last }
-	
+		
 	public func totalDuration(crossFade: Bool = true, fadeIn defaultFadeIn: AudioTrack.Fade? = nil, requiredFadeIn: Bool = false, fadeOut defaultFadeOut: AudioTrack.Fade? = nil, requiredFadeOut: Bool = false) -> TimeInterval {
 		
 		var total: TimeInterval = 0
@@ -82,5 +69,4 @@ public struct AudioQueue {
 		}
 		return total
 	}
-
 }

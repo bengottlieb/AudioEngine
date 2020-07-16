@@ -18,6 +18,7 @@ public class AudioMixer: ObservableObject {
 	public var fadeOut: AudioTrack.Fade = .linear(1)
 
 	public private(set) var channels: [String: AudioChannel] = [:]
+	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
 	public func start() {
 		let start = Date()

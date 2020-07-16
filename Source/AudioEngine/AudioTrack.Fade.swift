@@ -12,6 +12,8 @@ extension AudioTrack {
 		
 		var exists: Bool { (duration ?? 0) > 0 }
 		
+		static var `default` = Fade.constantPower(0.5)
+		
 		var name: String {
 			switch self {
 			case .abrupt: return "abrupt"

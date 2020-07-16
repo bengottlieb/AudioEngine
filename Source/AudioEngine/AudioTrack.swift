@@ -7,15 +7,6 @@ import Foundation
 import AVFoundation
 import Suite
 
-/*
-
-	[---------------------------------------------------------------]		// total duration of the sound/requested duration
-	[- fade in -][---- 'full' requested volume --------][ fade out -]
-
-	The fade in and fade out times are considered part of the total duration
-*/
-
-
 public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifiable {
 	enum CodingKeys: String, CodingKey { case url, volume, name, duration, fadeIn, fadeOut }
 	
@@ -54,6 +45,13 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		self.duration = try container.decode(TimeInterval.self, forKey: .duration)
 		self.fadeIn = try? container.decode(Fade.self, forKey: .fadeIn)
 		self.fadeOut = try? container.decode(Fade.self, forKey: .fadeOut)
+	}
+	
+	func adjustingFade(in fadeIn: Fade?, out fadeOut: Fade?) -> Self {
+		var copy = self
+		copy.fadeIn = fadeIn ?? self.fadeIn
+		copy.fadeOut = fadeOut ?? self.fadeOut
+		return self
 	}
 	
 	static func silence(duration: TimeInterval) -> AudioTrack { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }
