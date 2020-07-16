@@ -53,7 +53,7 @@ public class AudioChannel: ObservableObject {
 		self.startedAt = date
 		self.startNextTrack()
 		self.isPlaying = true
-		log("beginning channel \(self.name)", .verbose)
+		log("done setting up channel \(self.name)", .verbose)
 	}
 	
 	public func stop() {

@@ -1,5 +1,5 @@
 //
-//  AudioTrackPlayer.swift
+//  AudioFilePlayer.swift
 //  AudioEngine
 //
 
@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-class AudioTrackPlayer: NSObject, AudioPlayer {
+class AudioFilePlayer: NSObject, AudioPlayer {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var currentVolume = 0.0
@@ -27,6 +27,7 @@ class AudioTrackPlayer: NSObject, AudioPlayer {
 	
 	@discardableResult
 	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
+		self.track = track
 		self.channel = channel
 		return self
 	}
@@ -118,7 +119,7 @@ class AudioTrackPlayer: NSObject, AudioPlayer {
 	}
 }
 
-extension AudioTrackPlayer {
+extension AudioFilePlayer {
 	func didFinishPlaying() { log("Finished playing \(track!)") }
 	
 	func didBeginFadeOut(_ duration: TimeInterval) {
