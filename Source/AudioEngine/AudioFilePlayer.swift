@@ -34,6 +34,7 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 	
 	@discardableResult
 	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
+		if !track.url.existsOnDisk { print("Trying to play a missing file: \(track.url.path)") }
 		self.track = track
 		self.channel = channel
 		return self

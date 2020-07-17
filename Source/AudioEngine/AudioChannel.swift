@@ -10,9 +10,8 @@ import Combine
 
 public class AudioChannel: ObservableObject {
 	public let name: String
-	public private(set) var startedAt: Date?
 	
-	@Published public var isPlaying = false { didSet { if isPlaying != (startedAt != nil) { self.toggle() }}}
+	@Published public private(set) var isPlaying = false
 	@Published public private(set) var pausedAt: Date?
 	@Published public var queue = AudioQueue()
 	@Published public var currentTrack: AudioTrack?
@@ -23,6 +22,11 @@ public class AudioChannel: ObservableObject {
 	public var fadeIn: AudioTrack.Fade?
 	public var fadeOut: AudioTrack.Fade?
 	public var shouldCrossFade = true
+	
+	var totalPauseTime: TimeInterval = 0
+	var startedAt: Date?
+	var willTransitionAt: Date?
+
 	private var inheritedFadeIn: AudioTrack.Fade { fadeIn ?? AudioMixer.instance.fadeIn }
 	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
 	
@@ -48,32 +52,42 @@ public class AudioChannel: ObservableObject {
 		self.name = name
 	}
 	
-	public func start() {
+	public func play() {
 		if self.pausedAt != nil {
 			self.resume()
 			return
 		}
 		if self.isPlaying { return }			// already playing
-		log("starting channel \(self.name)", .verbose)
 
 		self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
 		self.startedAt = Date()
+		log("starting channel \(self.name) at \(self.startedAt!)", .verbose)
 		self.startNextTrack()
 		self.isPlaying = true
 		log("done setting up channel \(self.name)", .verbose)
 	}
 	
 	public func pause(over duration: TimeInterval = 0.2) {
-		if self.pausedAt != nil { return }
+		if self.pausedAt != nil || self.startedAt == nil { return }
 		self.pausedAt = Date(timeIntervalSinceNow: duration)
 		self.players.forEach { $0.pause(over: duration) }
+		self.transitionTimer?.invalidate()
+		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
 	}
 	
 	public func resume(over duration: TimeInterval = 0.2) {
 		guard let pausedAt = self.pausedAt else { return }
 		self.pausedAt = nil
+		let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
+		totalPauseTime += pauseDuration
 		self.players.forEach { $0.resume(over: duration) }
-		self.currentDuration += abs(pausedAt.timeIntervalSinceNow)
+		if let transitionAt = self.willTransitionAt {
+			willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
+			transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false, block: { _ in
+				self.startNextTrack()
+			})
+		}
+		log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
 	}
 	
 	public func stop() {
@@ -89,12 +103,13 @@ public class AudioChannel: ObservableObject {
 	
 	public var timeElapsed: TimeInterval? {
 		guard let startedAt = self.startedAt else { return nil }
-		return abs(startedAt.timeIntervalSinceNow)
+		let date = self.pausedAt ?? Date()
+		return abs(startedAt.timeIntervalSince(date)) - totalPauseTime
 	}
 	
 	public var timeRemaining: TimeInterval {
-		guard let startedAt = self.startedAt else { return 0 }
-		return currentDuration - abs(startedAt.timeIntervalSinceNow)
+		guard let elapsed = timeElapsed else { return 0 }
+		return currentDuration - elapsed
 	}
 	
 	public func setQueue(_ queue: AudioQueue) {
@@ -114,7 +129,7 @@ public class AudioChannel: ObservableObject {
 		if self.isPlaying {
 			self.pause()
 		} else {
-			self.start()
+			self.play()
 		}
 	}
 		
@@ -158,6 +173,7 @@ public class AudioChannel: ObservableObject {
 			currentPlayer = try self.newPlayer(for: track)
 				.start()
 			
+			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
 				self.startNextTrack()
 			})

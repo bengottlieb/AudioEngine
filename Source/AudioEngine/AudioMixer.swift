@@ -25,7 +25,7 @@ public class AudioMixer: ObservableObject {
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
 	public func start() {
-		channels.values.forEach { $0.start() }
+		channels.values.forEach { $0.play() }
 		self.objectWillChange.send()
 	}
 	
