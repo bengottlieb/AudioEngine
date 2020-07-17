@@ -13,10 +13,13 @@ public class AudioChannel: ObservableObject {
 	public private(set) var startedAt: Date?
 	
 	@Published public var isPlaying = false { didSet { if isPlaying != (startedAt != nil) { self.toggle() }}}
+	@Published public private(set) var pausedAt: Date?
 	@Published public var queue = AudioQueue()
 	@Published public var currentTrack: AudioTrack?
 	@Published public var currentDuration: TimeInterval = 0
-
+	@Published public var isMuted = false
+	
+	public var isPaused: Bool { self.pausedAt != nil }
 	public var fadeIn: AudioTrack.Fade?
 	public var fadeOut: AudioTrack.Fade?
 	public var shouldCrossFade = true
@@ -31,7 +34,7 @@ public class AudioChannel: ObservableObject {
 	private var currentPlayer: AudioPlayer? { didSet { self.currentTrack = currentPlayer?.track }}
 	private var fadingOutPlayer: AudioPlayer?
 	private weak var transitionTimer: Timer?
-	
+	private var players: [AudioPlayer] { [currentPlayer, fadingOutPlayer].compactMap { $0 }}
 
 	public static func channel(named name: String) -> AudioChannel {
 		if let existing = AudioMixer.instance.channels[name] { return existing }
@@ -45,15 +48,32 @@ public class AudioChannel: ObservableObject {
 		self.name = name
 	}
 	
-	public func start(at date: Date = Date()) {
+	public func start() {
+		if self.pausedAt != nil {
+			self.resume()
+			return
+		}
 		if self.isPlaying { return }			// already playing
 		log("starting channel \(self.name)", .verbose)
 
 		self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
-		self.startedAt = date
+		self.startedAt = Date()
 		self.startNextTrack()
 		self.isPlaying = true
 		log("done setting up channel \(self.name)", .verbose)
+	}
+	
+	public func pause(over duration: TimeInterval = 0.2) {
+		if self.pausedAt != nil { return }
+		self.pausedAt = Date(timeIntervalSinceNow: duration)
+		self.players.forEach { $0.pause(over: duration) }
+	}
+	
+	public func resume(over duration: TimeInterval = 0.2) {
+		guard let pausedAt = self.pausedAt else { return }
+		self.pausedAt = nil
+		self.players.forEach { $0.resume(over: duration) }
+		self.currentDuration += abs(pausedAt.timeIntervalSinceNow)
 	}
 	
 	public func stop() {
@@ -92,9 +112,9 @@ public class AudioChannel: ObservableObject {
 	
 	public func toggle() {
 		if self.isPlaying {
-			self.stop()
+			self.pause()
 		} else {
-			self.start(at: Date())
+			self.start()
 		}
 	}
 		

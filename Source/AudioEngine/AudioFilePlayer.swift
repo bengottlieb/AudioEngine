@@ -12,9 +12,16 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 	var player: AVAudioPlayer?
 	var currentVolume = 0.0
 	var startedAt: TimeInterval?
+	var pausedAt: Date?
+	var isMuted = false
 	weak var channel: AudioChannel?
+	
+	var endTimerFireDate: Date?
 	weak var fadeOutTimer: Timer?
 	weak var endTimer: Timer?
+	weak var volumeFadeTimer: Timer?
+	weak var pauseTimer: Timer?
+	private var timers: [Timer] { [fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
 
 	var isPlaying: Bool { startedAt != nil }
 	
@@ -30,6 +37,64 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		self.track = track
 		self.channel = channel
 		return self
+	}
+	
+	@discardableResult
+	func start() throws -> Self {
+		guard let track = self.track else { return self }
+		if self.pausedAt != nil {
+			self.resume()
+			return self
+		}
+		
+		try self.preload()
+
+		if track.fadeIn?.exists == true {
+			self.applyFade(in: true, to: track.volume)
+		} else {
+			self.play(at: track.volume)
+		}
+		
+		let duration = track.duration(for: track.fadeOut ?? .default)
+		if duration > 0 {
+			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
+		}
+		return self
+	}
+	
+	func mute(over duration: TimeInterval = 0.2) {
+		if self.isMuted { return }
+		self.isMuted = true
+		self.player?.setVolume(0, fadeDuration: duration)
+	}
+	
+	func unmute(over duration: TimeInterval = 0.2) {
+		if !self.isMuted { return }
+		self.isMuted = false
+		self.player?.setVolume(Float(self.currentVolume), fadeDuration: duration)
+	}
+
+	func pause(over duration: TimeInterval = 0.2) {
+		if self.pausedAt != nil { return }
+		self.pausedAt = Date()
+		self.timers.forEach { $0.invalidate() }
+		self.player?.setVolume(0.0, fadeDuration: duration)
+		self.pauseTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
+			self.pausedAt = Date()
+			self.player?.pause()
+		}
+	}
+	
+	func resume(over duration: TimeInterval = 0.2) {
+		guard let pausedAt = self.pausedAt else { return }
+		let delta = abs(pausedAt.timeIntervalSinceNow)
+		self.pausedAt = nil
+		self.player?.play()
+		self.player?.setVolume(Float(self.currentVolume), fadeDuration: duration)
+		if let fireAt = endTimerFireDate {
+			endTimerFireDate = fireAt.addingTimeInterval(delta)
+			self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
+		}
 	}
 	
 	func stop() {
@@ -57,24 +122,6 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		return self
 	}
 	
-	@discardableResult
-	func start() throws -> Self {
-		guard let track = self.track else { return self }
-		try self.preload()
-
-		if track.fadeIn?.exists == true {
-			self.applyFade(in: true, to: track.volume)
-		} else {
-			self.play(at: track.volume)
-		}
-		
-		let duration = track.duration(for: track.fadeOut ?? .default)
-		if duration > 0 {
-			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
-		}
-		return self
-	}
-
 	func applyFade(in fadingIn: Bool, to volume: Double) {
 		guard let track = self.track, let player = self.player else { return }
 		let fade = fadingIn ? track.fadeIn : track.fadeOut
@@ -86,13 +133,15 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 			self.currentVolume = volume
 			self.player?.play()
 			self.fadePlayer(from: Double(player.volume), to: volume, over: duration)
-			if !fadingIn { self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() } }
+			if !fadingIn {
+				self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
+				self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
+			}
 		} else {
 			if fadingIn { self.play(at: track.volume) }
 		}
 	}
 	
-	weak var volumeFadeTimer: Timer?
 	func fadePlayer(from fromVol: Double, to toVol: Double, over duration: TimeInterval) {
 		let delta = toVol - fromVol
 		let start = Date()

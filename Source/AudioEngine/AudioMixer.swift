@@ -12,22 +12,31 @@ import Suite
 
 public class AudioMixer: ObservableObject {
 	public static let instance = AudioMixer()
-	public var startedAt: Date?
+	public var startedAt: Date? { self.playingChannels.first?.startedAt }
 
 	public var fadeIn: AudioTrack.Fade = .linear(1)
 	public var fadeOut: AudioTrack.Fade = .linear(1)
+	public var isMuted: Bool {
+		get { self.playingChannels.reduce(true) { $0 && $1.isMuted }}
+		set { self.playingChannels.forEach { $0.isMuted = true }; self.objectWillChange.send() }
+	}
 
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
 	public func start() {
-		let start = Date()
-		self.startedAt = start
-		channels.values.forEach { $0.start(at: start) }
+		channels.values.forEach { $0.start() }
+		self.objectWillChange.send()
+	}
+	
+	public func pause() {
+		channels.values.forEach { $0.pause() }
+		self.objectWillChange.send()
 	}
 
 	public func stop() {
 		channels.values.forEach { $0.stop() }
+		self.objectWillChange.send()
 	}
 
 	internal func register(channel: AudioChannel) {
