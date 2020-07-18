@@ -58,6 +58,7 @@ public class AudioChannel: ObservableObject {
 			return
 		}
 		if self.isPlaying { return }			// already playing
+		self.clear()
 
 		self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
 		self.startedAt = Date()
@@ -99,6 +100,12 @@ public class AudioChannel: ObservableObject {
 		self.startedAt = nil
 		self.currentTrackIndex = nil
 		self.isPlaying = false
+		self.clear()
+	}
+	
+	private func clear() {
+		self.totalPauseTime = 0
+		self.pausedAt = nil
 	}
 	
 	public var timeElapsed: TimeInterval? {

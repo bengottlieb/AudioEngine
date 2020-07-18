@@ -56,14 +56,17 @@ public struct AudioQueue {
 		var total: TimeInterval = 0
 		
 		for (track, index) in zip(tracks, tracks.indices) {
-			let fadeIn = track.fadeIn ?? defaultFadeIn ?? .linear(2)
-			let fadeOut = track.fadeOut ?? defaultFadeOut ?? .linear(2)
-			let fadeInDuration = track.duration(for: fadeIn)
-			let fadeOutDuration = track.duration(for: fadeOut)
 			var trackDuration = track.duration
 			
-			if index != 0, crossFade { trackDuration -= fadeInDuration / 2 }
-			if index != (tracks.count - 1), crossFade { trackDuration -= fadeOutDuration / 2 }
+			if !useLoops {
+				let fadeIn = track.fadeIn ?? defaultFadeIn ?? .linear(2)
+				let fadeOut = track.fadeOut ?? defaultFadeOut ?? .linear(2)
+				let fadeInDuration = track.duration(for: fadeIn)
+				let fadeOutDuration = track.duration(for: fadeOut)
+				
+				if index != 0, crossFade { trackDuration -= fadeInDuration / 2 }
+				if index != (tracks.count - 1), crossFade { trackDuration -= fadeOutDuration / 2 }
+			}
 
 			total += trackDuration
 		}

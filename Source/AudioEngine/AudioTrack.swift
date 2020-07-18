@@ -70,5 +70,5 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	}
 
 	var maxFadeDuration: TimeInterval { self.effectiveDuration * 0.3 }
-	public static func ==(lhs: AudioTrack, rhs: AudioTrack) -> Bool { lhs.id == rhs.id }
+	public static func ==(lhs: AudioTrack, rhs: AudioTrack) -> Bool { lhs.url == rhs.url }
 }
