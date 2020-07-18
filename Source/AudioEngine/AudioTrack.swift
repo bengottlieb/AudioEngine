@@ -51,7 +51,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		var copy = self
 		copy.fadeIn = fadeIn ?? self.fadeIn
 		copy.fadeOut = fadeOut ?? self.fadeOut
-		return self
+		return copy
 	}
 	
 	func buildPlayer(in channel: AudioChannel, fadeIn: Fade?, fadeOut: Fade?) throws -> AudioPlayer {

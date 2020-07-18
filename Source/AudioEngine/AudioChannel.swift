@@ -16,7 +16,7 @@ public class AudioChannel: ObservableObject {
 	@Published public var queue = AudioQueue()
 	@Published public var currentTrack: AudioTrack?
 	@Published public var currentDuration: TimeInterval = 0
-	@Published public var isMuted = false
+	@Published public var isMuted = false { didSet { self.updateMute() }}
 	
 	public var isPaused: Bool { self.pausedAt != nil }
 	public var fadeIn: AudioTrack.Fade?
@@ -103,6 +103,14 @@ public class AudioChannel: ObservableObject {
 		self.clear()
 	}
 	
+	func updateMute() {
+		if self.isMuted {
+			self.players.forEach { $0.mute(over: 0.2) }
+		} else {
+			self.players.forEach { $0.unmute(over: 0.2) }
+		}
+	}
+	
 	private func clear() {
 		self.totalPauseTime = 0
 		self.pausedAt = nil
@@ -180,6 +188,7 @@ public class AudioChannel: ObservableObject {
 			currentPlayer = try self.newPlayer(for: track)
 				.start()
 			
+			if self.isMuted { currentPlayer?.mute(over: 0) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
 				self.startNextTrack()

@@ -91,7 +91,7 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		let delta = abs(pausedAt.timeIntervalSinceNow)
 		self.pausedAt = nil
 		self.player?.play()
-		self.player?.setVolume(Float(self.currentVolume), fadeDuration: duration)
+		self.player?.setVolume(Float(isMuted ? 0 : self.currentVolume), fadeDuration: duration)
 		if let fireAt = endTimerFireDate {
 			endTimerFireDate = fireAt.addingTimeInterval(delta)
 			self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
@@ -130,7 +130,7 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		
 		if duration > 0 {
 			log("Fading \(self) from \(self.currentVolume) to \(volume)", .verbose)
-			self.player?.volume = Float(self.currentVolume)
+			self.player?.volume = isMuted ? 0 : Float(self.currentVolume)
 			self.currentVolume = volume
 			self.player?.play()
 			self.fadePlayer(from: Double(player.volume), to: volume, over: duration)
@@ -147,16 +147,16 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		let delta = toVol - fromVol
 		let start = Date()
 		self.volumeFadeTimer?.invalidate()
-		self.player?.volume = Float(fromVol)
+		self.player?.volume = isMuted ? 0 : Float(fromVol)
 		self.volumeFadeTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
 			let elapsed = abs(start.timeIntervalSinceNow)
 			let percentage = (elapsed / duration)
 			if percentage >= 1 {
-				self.player?.volume = Float(toVol)
+				self.player?.volume = self.isMuted ? 0 : Float(toVol)
 				timer.invalidate()
 			} else {
 				let newVolume = fromVol + percentage * delta
-				self.player?.volume = Float(newVolume)
+				self.player?.volume = self.isMuted ? 0 : Float(newVolume)
 			}
 		}
 	}
@@ -165,7 +165,7 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		self.player?.volume = 0
 		self.player?.play()
 		self.currentVolume = volume
-		self.player?.volume = Float(volume)
+		self.player?.volume = isMuted ? 0 : Float(volume)
 	}
 }
 
