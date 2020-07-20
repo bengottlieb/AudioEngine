@@ -42,10 +42,9 @@ public struct AudioQueue {
 		var newTrack = track.adjustingFade(in: fadeIn, out: fadeOut)
 
 		if useLoops, let lastTrack = self.tracks.last, lastTrack == track {
-			newTrack = track
+			newTrack = lastTrack
 			newTrack.duration += track.duration
-			newTrack.fadeOut = track.fadeOut
-			self.tracks[self.tracks.count - 1] = newTrack
+			self.tracks[self.tracks.count - 1] = newTrack.adjustingFade(in: lastTrack.fadeIn, out: fadeOut)
 		} else {
 			self.tracks.append(newTrack)
 		}
