@@ -23,6 +23,8 @@ public class AudioChannel: ObservableObject {
 	public var fadeOut: AudioTrack.Fade?
 	public var shouldCrossFade = true
 	
+	public static var mainChannelName = "Main"
+	
 	var totalPauseTime: TimeInterval = 0
 	var startedAt: Date?
 	var willTransitionAt: Date?
@@ -91,16 +93,23 @@ public class AudioChannel: ObservableObject {
 		log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
 	}
 	
-	public func stop() {
-		self.stoppedAt = self.timeElapsed ?? 0
-		self.fadingOutPlayer?.stop()
-		self.currentPlayer?.stop()
-		self.transitionTimer?.invalidate()
-		
-		self.startedAt = nil
-		self.currentTrackIndex = nil
+	public func stop(over duration: TimeInterval = 0, completion: (() -> Void)? = nil) {
 		self.isPlaying = false
-		self.clear()
+
+		self.players.forEach { $0.pause(over: duration) }
+		DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+			if !self.isPlaying {
+				self.stoppedAt = self.timeElapsed ?? 0
+				self.fadingOutPlayer?.stop()
+				self.currentPlayer?.stop()
+				self.transitionTimer?.invalidate()
+				
+				self.startedAt = nil
+				self.currentTrackIndex = nil
+				self.clear()
+			}
+			completion?()
+		}
 	}
 	
 	func updateMute() {

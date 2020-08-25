@@ -42,4 +42,13 @@ public class AudioMixer: ObservableObject {
 	internal func register(channel: AudioChannel) {
 		channels[channel.name] = channel
 	}
+	
+	public var mainChannel: AudioChannel {
+		if let main = channels[AudioChannel.mainChannelName] { return main }
+		
+		let newMain = AudioChannel(name: AudioChannel.mainChannelName)
+		self.register(channel: newMain)
+		
+		return newMain
+	}
 }
