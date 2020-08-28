@@ -18,24 +18,34 @@ public class AudioMixer: ObservableObject {
 	public var fadeOut: AudioTrack.Fade = .linear(1)
 	public var isMuted: Bool {
 		get { self.playingChannels.reduce(true) { $0 && $1.isMuted }}
-		set { self.playingChannels.forEach { $0.isMuted = true }; self.objectWillChange.send() }
+		set { self.playingChannels.forEach { $0.muteFactor = newValue ? 1 : 0 }; channelPlayStateChanged() }
 	}
+
+	public var isPlaying: Bool { self.playingChannels.contains { $0.isPaused == false } }
+	public var canPlay: Bool { self.channels.values.reduce(false) { $0 || $1.canPlay } }
+
+	public var isDucked: Bool {
+		get { self.playingChannels.reduce(true) { $0 && $1.isDucked }}
+		set {
+			self.playingChannels.forEach { $0.muteFactor = newValue ? self.duckMuteFactor : 0 }
+			channelPlayStateChanged()
+		}
+	}
+	
+	public var duckMuteFactor: Float = 0.9
 
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
-	public func start() {
+	public func play() {
 		channels.values.forEach { $0.play() }
-		self.objectWillChange.send()
 	}
 	
-	public func pause() {
-		channels.values.forEach { $0.pause() }
-		self.objectWillChange.send()
+	public func pause(fadeOut fade: AudioTrack.Fade = .default) {
+		channels.values.forEach { $0.pause(fadeOut: fade) }
 	}
-
-	public func stop() {
-		channels.values.forEach { $0.stop() }
+	
+	func channelPlayStateChanged() {
 		self.objectWillChange.send()
 	}
 

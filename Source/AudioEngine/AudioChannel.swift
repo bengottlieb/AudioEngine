@@ -16,9 +16,13 @@ public class AudioChannel: ObservableObject {
 	@Published public var queue = AudioQueue()
 	@Published public var currentTrack: AudioTrack?
 	@Published public var currentDuration: TimeInterval = 0
-	@Published public var isMuted = false { didSet { self.updateMute() }}
 	
 	public var isPaused: Bool { self.pausedAt != nil }
+	public var isMuted: Bool {
+		get { self.muteFactor == 1 }
+		set { self.muteFactor = newValue ? 1 : 0 }
+	}
+	public var isDucked: Bool { self.muteFactor < 1 && self.muteFactor > 0 }
 	public var fadeIn: AudioTrack.Fade?
 	public var fadeOut: AudioTrack.Fade?
 	public var shouldCrossFade = true
@@ -29,6 +33,8 @@ public class AudioChannel: ObservableObject {
 	var startedAt: Date?
 	var willTransitionAt: Date?
 
+	public var canPlay: Bool { self.queue.isEmpty == false }
+	
 	private var inheritedFadeIn: AudioTrack.Fade { fadeIn ?? AudioMixer.instance.fadeIn }
 	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
 	
@@ -41,6 +47,10 @@ public class AudioChannel: ObservableObject {
 	private var fadingOutPlayer: AudioPlayer?
 	private weak var transitionTimer: Timer?
 	private var players: [AudioPlayer] { [currentPlayer, fadingOutPlayer].compactMap { $0 }}
+	
+	var muteFactor: Float = 0.0 { didSet {
+		self.updateMute(factor: muteFactor)
+	}}
 
 	public static func channel(named name: String) -> AudioChannel {
 		if let existing = AudioMixer.instance.channels[name] { return existing }
@@ -68,22 +78,24 @@ public class AudioChannel: ObservableObject {
 		self.startNextTrack()
 		self.isPlaying = true
 		log("done setting up channel \(self.name)", .verbose)
+		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
-	public func pause(over duration: TimeInterval = 0.2) {
+	public func pause(fadeOut fade: AudioTrack.Fade = .default) {
 		if self.pausedAt != nil || self.startedAt == nil { return }
-		self.pausedAt = Date(timeIntervalSinceNow: duration)
-		self.players.forEach { $0.pause(over: duration) }
+		self.pausedAt = Date(timeIntervalSinceNow: fade.duration ?? 0)
+		self.players.forEach { $0.pause(fadeOut: fade) }
 		self.transitionTimer?.invalidate()
 		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
+		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
-	public func resume(over duration: TimeInterval = 0.2) {
+	public func resume(fadeIn fade: AudioTrack.Fade = .default) {
 		guard let pausedAt = self.pausedAt else { return }
 		self.pausedAt = nil
 		let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
 		totalPauseTime += pauseDuration
-		self.players.forEach { $0.resume(over: duration) }
+		self.players.forEach { $0.resume(fadeIn: fade) }
 		if let transitionAt = self.willTransitionAt {
 			willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false, block: { _ in
@@ -91,38 +103,40 @@ public class AudioChannel: ObservableObject {
 			})
 		}
 		log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
+		AudioMixer.instance.channelPlayStateChanged()
 	}
+//	
+//	public func stop(over duration: TimeInterval = 0, completion: (() -> Void)? = nil) {
+//		self.isPlaying = false
+//
+//		self.players.forEach { $0.pause(over: duration) }
+//		DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+//			if !self.isPlaying {
+//				self.stoppedAt = self.timeElapsed ?? 0
+//				self.fadingOutPlayer?.stop()
+//				self.currentPlayer?.stop()
+//				self.fadingOutPlayer = nil
+//				self.transitionTimer?.invalidate()
+//				
+//				self.startedAt = nil
+//				self.currentTrackIndex = nil
+//				self.clear()
+//			}
+//			completion?()
+//		}
+//		AudioMixer.instance.channelPlayStateChanged()
+//	}
 	
-	public func stop(over duration: TimeInterval = 0, completion: (() -> Void)? = nil) {
-		self.isPlaying = false
-
-		self.players.forEach { $0.pause(over: duration) }
-		DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-			if !self.isPlaying {
-				self.stoppedAt = self.timeElapsed ?? 0
-				self.fadingOutPlayer?.stop()
-				self.currentPlayer?.stop()
-				self.transitionTimer?.invalidate()
-				
-				self.startedAt = nil
-				self.currentTrackIndex = nil
-				self.clear()
-			}
-			completion?()
-		}
-	}
-	
-	func updateMute() {
-		if self.isMuted {
-			self.players.forEach { $0.mute(over: 0.2) }
-		} else {
-			self.players.forEach { $0.unmute(over: 0.2) }
-		}
+	func updateMute(factor: Float = 1.0) {
+		self.players.forEach { $0.mute(to: factor, fading: .default) }
+		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
 	private func clear() {
 		self.totalPauseTime = 0
 		self.pausedAt = nil
+		self.currentPlayer?.pause(fadeOut: .abrupt)
+		self.currentPlayer = nil
 	}
 	
 	public var timeElapsed: TimeInterval? {
@@ -145,7 +159,7 @@ public class AudioChannel: ObservableObject {
 	}
 	
 	public func clearQueue() {
-		self.stop()
+		self.pause()
 		self.queue.clear()
 	}
 	
@@ -161,7 +175,7 @@ public class AudioChannel: ObservableObject {
 	
 	func ended() {
 		guard let startedAt = self.startedAt else { return }
-		self.stop()
+		self.pause()
 
 		log("\(self) has ended. Took \(abs(startedAt.timeIntervalSinceNow)), expected \(self.currentDuration).", .verbose)
 		self.startedAt = nil
@@ -197,7 +211,7 @@ public class AudioChannel: ObservableObject {
 			currentPlayer = try self.newPlayer(for: track)
 				.start()
 			
-			if self.isMuted { currentPlayer?.mute(over: 0) }
+			if self.isMuted { currentPlayer?.mute(to: 0, fading: .abrupt) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
 				self.startNextTrack()
@@ -209,7 +223,7 @@ public class AudioChannel: ObservableObject {
 	
 	func end(player: AudioPlayer?) {
 		guard let player = player else { return }
-		player.stop()
+		player.pause(fadeOut: .abrupt)
 	//	self.availablePlayers.insert(player)
 	}
 	

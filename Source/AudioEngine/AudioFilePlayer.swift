@@ -13,7 +13,9 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 	var currentVolume = 0.0
 	var startedAt: TimeInterval?
 	var pausedAt: Date?
-	var isMuted = false
+	var isMuted: Bool { muteFactor == 1 }
+	var isDucked: Bool { muteFactor < 1 && muteFactor > 0 }
+	var muteFactor: Float = 0.0
 	weak var channel: AudioChannel?
 	
 	var endTimerFireDate: Date?
@@ -63,35 +65,28 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		return self
 	}
 	
-	func mute(over duration: TimeInterval = 0.2) {
-		if self.isMuted { return }
-		self.isMuted = true
-		self.player?.setVolume(0, fadeDuration: duration)
+	func mute(to factor: Float, fading fade: AudioTrack.Fade = .default) {
+		if self.muteFactor == factor { return }
+		self.muteFactor = factor
+		self.player?.setVolume(1.0 - muteFactor, fadeDuration: fade.duration ?? 0)
 	}
 	
-	func unmute(over duration: TimeInterval = 0.2) {
-		if !self.isMuted { return }
-		self.isMuted = false
-		self.player?.setVolume(Float(self.currentVolume), fadeDuration: duration)
-	}
-
-	func pause(over duration: TimeInterval = 0.2) {
+	func pause(fadeOut fade: AudioTrack.Fade = .default) {
 		if self.pausedAt != nil { return }
 		self.pausedAt = Date()
 		self.timers.forEach { $0.invalidate() }
-		self.player?.setVolume(0.0, fadeDuration: duration)
-		self.pauseTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
-			self.pausedAt = Date()
+		self.player?.setVolume(0.0, fadeDuration: fade.duration ?? 0)
+		self.pauseTimer = Timer.scheduledTimer(withTimeInterval: fade.duration ?? 0, repeats: false) { _ in
 			self.player?.pause()
 		}
 	}
 	
-	func resume(over duration: TimeInterval = 0.2) {
+	func resume(fadeIn fade: AudioTrack.Fade = .default) {
 		guard let pausedAt = self.pausedAt else { return }
 		let delta = abs(pausedAt.timeIntervalSinceNow)
 		self.pausedAt = nil
 		self.player?.play()
-		self.player?.setVolume(Float(isMuted ? 0 : self.currentVolume), fadeDuration: duration)
+		self.player?.setVolume(Float(isMuted ? 0 : self.currentVolume), fadeDuration: fade.duration ?? 0)
 		if let fireAt = endTimerFireDate {
 			endTimerFireDate = fireAt.addingTimeInterval(delta)
 			self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }

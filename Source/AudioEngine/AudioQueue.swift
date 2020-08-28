@@ -24,6 +24,7 @@ public struct AudioQueue {
 	public var useLoops = false
 	public var count: Int { tracks.count }
 	public var last: AudioTrack? { self.tracks.last }
+	public var isEmpty: Bool { tracks.isEmpty }
 
 	public subscript(index: Int) -> AudioTrack? { index < tracks.count ? tracks[index] : nil }
 

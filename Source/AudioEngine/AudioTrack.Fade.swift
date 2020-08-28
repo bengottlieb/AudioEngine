@@ -12,8 +12,8 @@ extension AudioTrack {
 		
 		var exists: Bool { (duration ?? 0) > 0 }
 		
-		static var `default` = Fade.constantPower(0.5)
-		
+		static public var `default` = Fade.linear(0.2)
+
 		var name: String {
 			switch self {
 			case .abrupt: return "abrupt"
@@ -61,7 +61,7 @@ extension AudioTrack {
 			case .constantPower(_): return .constantPower(max)
 			case .abrupt: return self
 			}
-
 		}
+		
 	}
 }
