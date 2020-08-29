@@ -54,7 +54,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		return copy
 	}
 	
-	func buildPlayer(in channel: AudioChannel, fadeIn: Fade?, fadeOut: Fade?) throws -> AudioPlayer {
+	func buildPlayer(in channel: AudioChannel, fadeIn: Fade?, fadeOut: Fade?) throws -> AudioSource {
 		try AudioFilePlayer()
 			.load(track: self.adjustingFade(in: fadeIn, out: fadeOut), into: channel)
 			.preload()

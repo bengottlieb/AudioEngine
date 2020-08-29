@@ -10,7 +10,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-public class AudioMixer: ObservableObject {
+public class AudioMixer: ObservableObject, AudioPlayer {
 	public static let instance = AudioMixer()
 	public var startedAt: Date? { self.playingChannels.first?.startedAt }
 
@@ -18,7 +18,7 @@ public class AudioMixer: ObservableObject {
 	public var fadeOut: AudioTrack.Fade = .linear(1)
 	public var isMuted: Bool {
 		get { self.playingChannels.reduce(true) { $0 && $1.isMuted }}
-		set { self.playingChannels.forEach { $0.muteFactor = newValue ? 1 : 0 }; channelPlayStateChanged() }
+		set { self.mute(to: newValue ? 1 : 0, fading: .default) }
 	}
 
 	public var isPlaying: Bool { self.playingChannels.contains { $0.isPaused == false } }
@@ -37,9 +37,15 @@ public class AudioMixer: ObservableObject {
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
-	public func play(fadeIn fade: AudioTrack.Fade? = nil) {
-		channels.values.forEach { $0.play(fadeIn: fade) }
+	public func play(fadeIn fade: AudioTrack.Fade? = nil) throws {
+		channels.values.forEach { try? $0.play(fadeIn: fade) }
 	}
+	
+	func mute(to factor: Float, fading: AudioTrack.Fade) {
+		self.playingChannels.forEach { $0.mute(to: factor, fading: fading) }
+		channelPlayStateChanged()
+	}
+
 	
 	public func pause(fadeOut fade: AudioTrack.Fade = .default) {
 		channels.values.forEach { $0.pause(fadeOut: fade) }

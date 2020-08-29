@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-class AudioFilePlayer: NSObject, AudioPlayer {
+class AudioFilePlayer: NSObject, AudioSource {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var currentVolume: Float = 0.0
@@ -48,9 +48,8 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		self.currentVolume * (1.0 - self.muteFactor)
 	}
 	
-	@discardableResult
-	func play(fadeIn fade: AudioTrack.Fade?) throws -> Self {
-		guard let track = self.track else { return self }
+	func play(fadeIn fade: AudioTrack.Fade?) throws {
+		guard let track = self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
 			self.pausedAt = nil
@@ -67,7 +66,7 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 				endTimerFireDate = fireAt.addingTimeInterval(delta)
 				self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
 			}
-			return self
+			return
 		}
 		
 		try self.preload()
@@ -83,7 +82,6 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		if duration > 0 {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
 		}
-		return self
 	}
 	
 	func mute(to factor: Float, fading fade: AudioTrack.Fade = .default) {
