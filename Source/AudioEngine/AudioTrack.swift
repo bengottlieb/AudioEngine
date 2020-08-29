@@ -14,7 +14,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	
 	public static var silenceURL = URL(fileURLWithPath: "/")
 	public let url: URL
-	public var volume = 1.0
+	public var volume: Float = 1.0
 	public var name: String
 	public var fadeIn: Fade?
 	public var fadeOut: Fade?
@@ -25,7 +25,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public var isSilence: Bool { self.url == Self.silenceURL }
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
-	public init(url: URL, name: String? = nil, volume: Double = 1.0, duration: TimeInterval? = nil, fadeIn: Fade? = nil, fadeOut: Fade? = nil) {
+	public init(url: URL, name: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Fade? = nil, fadeOut: Fade? = nil) {
 		self.asset = AVURLAsset(url: url)
 		self.url = url
 		self.volume = volume
@@ -38,7 +38,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public init(from decoder: Decoder) throws {
 		let container = try decoder.container(keyedBy: CodingKeys.self)
 		
-		self.volume = try container.decode(Double.self, forKey: .volume)
+		self.volume = try container.decode(Float.self, forKey: .volume)
 		self.url = try container.decode(URL.self, forKey: .url)
 		self.asset = AVURLAsset(url: self.url)
 		self.name = try container.decode(String.self, forKey: .name)

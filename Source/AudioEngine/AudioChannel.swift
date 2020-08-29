@@ -39,7 +39,6 @@ public class AudioChannel: ObservableObject {
 	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
 	
 	public var currentTrackIndex: Int?
-	public var stoppedAt: TimeInterval?
 	private var pendingTrackIndex: Int?
 	
 	//private var availablePlayers: Set<Player> = []
@@ -64,20 +63,30 @@ public class AudioChannel: ObservableObject {
 		self.name = name
 	}
 	
-	public func play() {
-		if self.pausedAt != nil {
-			self.resume()
-			return
-		}
-		if self.isPlaying { return }			// already playing
-		self.clear()
+	public func play(fadeIn fade: AudioTrack.Fade? = nil) {
+		if let pausedAt = self.pausedAt {
+			self.pausedAt = nil
+			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
+			totalPauseTime += pauseDuration
+			self.players.forEach { _ = try? $0.play(fadeIn: fade) }
+			if let transitionAt = self.willTransitionAt {
+				willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
+				transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false) { _ in
+					self.startNextTrack()
+				}
+			}
+			log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
+		} else {
+			if self.isPlaying { return }			// already playing
+			self.clear()
 
-		self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
-		self.startedAt = Date()
-		log("starting channel \(self.name) at \(self.startedAt!)", .verbose)
-		self.startNextTrack()
-		self.isPlaying = true
-		log("done setting up channel \(self.name)", .verbose)
+			self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, fadeIn: self.inheritedFadeIn, fadeOut: self.inheritedFadeOut)
+			self.startedAt = Date()
+			log("starting channel \(self.name) at \(self.startedAt!)", .verbose)
+			self.startNextTrack()
+			self.isPlaying = true
+			log("done setting up channel \(self.name)", .verbose)
+		}
 		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
@@ -90,42 +99,15 @@ public class AudioChannel: ObservableObject {
 		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
-	public func resume(fadeIn fade: AudioTrack.Fade = .default) {
-		guard let pausedAt = self.pausedAt else { return }
+	public func reset() {
+		self.players.forEach { $0.reset() }
+		self.transitionTimer?.invalidate()
 		self.pausedAt = nil
-		let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
-		totalPauseTime += pauseDuration
-		self.players.forEach { $0.resume(fadeIn: fade) }
-		if let transitionAt = self.willTransitionAt {
-			willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
-			transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false, block: { _ in
-				self.startNextTrack()
-			})
-		}
-		log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
-		AudioMixer.instance.channelPlayStateChanged()
+		self.startedAt = nil
+		self.currentTrackIndex = nil
+		self.isPlaying = false
+		self.clear()
 	}
-//	
-//	public func stop(over duration: TimeInterval = 0, completion: (() -> Void)? = nil) {
-//		self.isPlaying = false
-//
-//		self.players.forEach { $0.pause(over: duration) }
-//		DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-//			if !self.isPlaying {
-//				self.stoppedAt = self.timeElapsed ?? 0
-//				self.fadingOutPlayer?.stop()
-//				self.currentPlayer?.stop()
-//				self.fadingOutPlayer = nil
-//				self.transitionTimer?.invalidate()
-//				
-//				self.startedAt = nil
-//				self.currentTrackIndex = nil
-//				self.clear()
-//			}
-//			completion?()
-//		}
-//		AudioMixer.instance.channelPlayStateChanged()
-//	}
 	
 	func updateMute(factor: Float = 1.0) {
 		self.players.forEach { $0.mute(to: factor, fading: .default) }
@@ -209,7 +191,7 @@ public class AudioChannel: ObservableObject {
 		
 		do {
 			currentPlayer = try self.newPlayer(for: track)
-				.start()
+				.play(fadeIn: .default)
 			
 			if self.isMuted { currentPlayer?.mute(to: 0, fading: .abrupt) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)

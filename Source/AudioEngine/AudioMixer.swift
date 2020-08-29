@@ -37,12 +37,16 @@ public class AudioMixer: ObservableObject {
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
-	public func play() {
-		channels.values.forEach { $0.play() }
+	public func play(fadeIn fade: AudioTrack.Fade? = nil) {
+		channels.values.forEach { $0.play(fadeIn: fade) }
 	}
 	
 	public func pause(fadeOut fade: AudioTrack.Fade = .default) {
 		channels.values.forEach { $0.pause(fadeOut: fade) }
+	}
+	
+	public func reset() {
+		channels.values.forEach { $0.reset() }
 	}
 	
 	func channelPlayStateChanged() {

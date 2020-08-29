@@ -10,7 +10,7 @@ import Suite
 class AudioFilePlayer: NSObject, AudioPlayer {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
-	var currentVolume = 0.0
+	var currentVolume: Float = 0.0
 	var startedAt: TimeInterval?
 	var pausedAt: Date?
 	var isMuted: Bool { muteFactor == 1 }
@@ -32,7 +32,9 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		return player.duration - player.currentTime
 	}
 	
-	deinit { self.stop() }
+	deinit {
+		self.reset()
+	}
 	
 	@discardableResult
 	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
@@ -42,18 +44,37 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		return self
 	}
 	
+	var effectiveVolume: Float {
+		self.currentVolume * (1.0 - self.muteFactor)
+	}
+	
 	@discardableResult
-	func start() throws -> Self {
+	func play(fadeIn fade: AudioTrack.Fade?) throws -> Self {
 		guard let track = self.track else { return self }
-		if self.pausedAt != nil {
-			self.resume()
+		if let pausedAt = self.pausedAt {
+			let delta = abs(pausedAt.timeIntervalSinceNow)
+			self.pausedAt = nil
+			
+			if let duration = fade?.duration, duration > 0 {
+				self.player?.volume = 0.0
+				self.player?.play()
+				self.player?.setVolume(self.effectiveVolume, fadeDuration: duration)
+			} else {
+				self.player?.setVolume(self.effectiveVolume, fadeDuration: 0)
+				self.player?.play()
+			}
+			if let fireAt = endTimerFireDate {
+				endTimerFireDate = fireAt.addingTimeInterval(delta)
+				self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
+			}
 			return self
 		}
 		
 		try self.preload()
 
-		if track.fadeIn?.exists == true {
-			self.applyFade(in: true, to: track.volume)
+		let fadeIn = fade ?? track.fadeIn ?? self.channel?.fadeIn ?? .default
+		if fadeIn.exists {
+			self.apply(fadeIn, in: true, to: track.volume)
 		} else {
 			self.play(at: track.volume)
 		}
@@ -72,37 +93,31 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 	}
 	
 	func pause(fadeOut fade: AudioTrack.Fade = .default) {
-		if self.pausedAt != nil { return }
-		self.pausedAt = Date()
+		if self.pausedAt == nil {
+			self.pausedAt = Date()
+		}
 		self.timers.forEach { $0.invalidate() }
-		self.player?.setVolume(0.0, fadeDuration: fade.duration ?? 0)
-		self.pauseTimer = Timer.scheduledTimer(withTimeInterval: fade.duration ?? 0, repeats: false) { _ in
+		if let duration = fade.duration {
+			self.player?.setVolume(0.0, fadeDuration: duration)
+			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
+				self.player?.pause()
+			}
+		} else {
 			self.player?.pause()
+			self.player?.volume = 0.0
 		}
-	}
-	
-	func resume(fadeIn fade: AudioTrack.Fade = .default) {
-		guard let pausedAt = self.pausedAt else { return }
-		let delta = abs(pausedAt.timeIntervalSinceNow)
-		self.pausedAt = nil
-		self.player?.play()
-		self.player?.setVolume(Float(isMuted ? 0 : self.currentVolume), fadeDuration: fade.duration ?? 0)
-		if let fireAt = endTimerFireDate {
-			endTimerFireDate = fireAt.addingTimeInterval(delta)
-			self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
-		}
-	}
-	
-	func stop() {
-		self.player?.volume = 0
-		self.player?.stop()
-		self.fadeOutTimer?.invalidate()
-		self.endTimer?.invalidate()
 	}
 	
 	override var description: String {
 		if let track = self.track { return "Player: \(track)" }
 		return "Empty Player"
+	}
+	
+	func reset() {
+		self.pause(fadeOut: .abrupt)
+		self.player?.stop()
+		self.fadeOutTimer?.invalidate()
+		self.endTimer?.invalidate()
 	}
 	
 	@discardableResult
@@ -118,17 +133,16 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		return self
 	}
 	
-	func applyFade(in fadingIn: Bool, to volume: Double) {
+	func apply(_ fade: AudioTrack.Fade, in fadingIn: Bool, to volume: Float) {
 		guard let track = self.track, let player = self.player else { return }
-		let fade = fadingIn ? track.fadeIn : track.fadeOut
-		let duration = track.duration(for: fade ?? .default)
+		let duration = track.duration(for: fade)
 		
 		if duration > 0 {
 			log("Fading \(self) from \(self.currentVolume) to \(volume)", .verbose)
 			self.player?.volume = isMuted ? 0 : Float(self.currentVolume)
 			self.currentVolume = volume
 			self.player?.play()
-			self.fadePlayer(from: Double(player.volume), to: volume, over: duration)
+			self.fadePlayer(from: player.volume, to: volume, over: duration)
 			if !fadingIn {
 				self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
 				self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
@@ -138,7 +152,7 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 		}
 	}
 	
-	func fadePlayer(from fromVol: Double, to toVol: Double, over duration: TimeInterval) {
+	func fadePlayer(from fromVol: Float, to toVol: Float, over duration: TimeInterval) {
 		let delta = toVol - fromVol
 		let start = Date()
 		self.volumeFadeTimer?.invalidate()
@@ -150,17 +164,17 @@ class AudioFilePlayer: NSObject, AudioPlayer {
 				self.player?.volume = self.isMuted ? 0 : Float(toVol)
 				timer.invalidate()
 			} else {
-				let newVolume = fromVol + percentage * delta
+				let newVolume = fromVol + Float(percentage) * delta
 				self.player?.volume = self.isMuted ? 0 : Float(newVolume)
 			}
 		}
 	}
 	
-	func play(at volume: Double) {
+	func play(at volume: Float) {
 		self.player?.volume = 0
 		self.player?.play()
 		self.currentVolume = volume
-		self.player?.volume = isMuted ? 0 : Float(volume)
+		self.player?.volume = isMuted ? 0 : volume
 	}
 }
 
@@ -168,6 +182,7 @@ extension AudioFilePlayer {
 	func didFinishPlaying() { log("Finished playing \(track!)") }
 	
 	func didBeginFadeOut(_ duration: TimeInterval) {
-		applyFade(in: false, to: 0)
+		let fade = self.track?.fadeOut ?? self.channel?.fadeOut ?? .default
+		apply(fade, in: false, to: 0)
 	}
 }
