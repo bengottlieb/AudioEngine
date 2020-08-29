@@ -10,7 +10,7 @@ import Suite
 class AudioFilePlayer: NSObject, AudioSource {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
-	var currentVolume: Float = 0.0
+	var requestedVolume: Float = 0.0
 	var startedAt: TimeInterval?
 	var pausedAt: Date?
 	var isMuted: Bool { muteFactor == 1 }
@@ -45,10 +45,10 @@ class AudioFilePlayer: NSObject, AudioSource {
 	}
 	
 	var effectiveVolume: Float {
-		self.currentVolume * (1.0 - self.muteFactor)
+		self.requestedVolume * (1.0 - self.muteFactor)
 	}
 	
-	func play(fadeIn fade: AudioTrack.Fade?) throws {
+	func play(fadeIn fade: AudioTrack.Fade?, completion: (() -> Void)? = nil) throws {
 		guard let track = self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
@@ -58,9 +58,11 @@ class AudioFilePlayer: NSObject, AudioSource {
 				self.player?.volume = 0.0
 				self.player?.play()
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: duration)
+				DispatchQueue.main.asyncAfter(deadline: .now() + duration) { completion?() }
 			} else {
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: 0)
 				self.player?.play()
+				completion?()
 			}
 			if let fireAt = endTimerFireDate {
 				endTimerFireDate = fireAt.addingTimeInterval(delta)
@@ -71,11 +73,13 @@ class AudioFilePlayer: NSObject, AudioSource {
 		
 		try self.preload()
 
+		self.requestedVolume = track.volume
 		let fadeIn = fade ?? track.fadeIn ?? self.channel?.fadeIn ?? .default
 		if fadeIn.exists {
-			self.apply(fadeIn, in: true, to: track.volume)
+			self.apply(fadeIn, in: true, to: self.requestedVolume)
 		} else {
-			self.play(at: track.volume)
+			self.requestedVolume = track.volume
+			self.play(at: self.effectiveVolume)
 		}
 		
 		let duration = track.duration(for: track.fadeOut ?? .default)
@@ -84,13 +88,14 @@ class AudioFilePlayer: NSObject, AudioSource {
 		}
 	}
 	
-	func mute(to factor: Float, fading fade: AudioTrack.Fade = .default) {
+	func mute(to factor: Float, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 		if self.muteFactor == factor { return }
 		self.muteFactor = factor
-		self.player?.setVolume(1.0 - muteFactor, fadeDuration: fade.duration ?? 0)
+		self.player?.setVolume(self.effectiveVolume, fadeDuration: fade.duration ?? 0)
 	}
 	
-	func pause(fadeOut fade: AudioTrack.Fade = .default) {
+	func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
 		if self.pausedAt == nil {
 			self.pausedAt = Date()
 		}
@@ -104,6 +109,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 			self.player?.pause()
 			self.player?.volume = 0.0
 		}
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 	
 	override var description: String {
@@ -136,17 +142,18 @@ class AudioFilePlayer: NSObject, AudioSource {
 		let duration = track.duration(for: fade)
 		
 		if duration > 0 {
-			log("Fading \(self) from \(self.currentVolume) to \(volume)", .verbose)
-			self.player?.volume = isMuted ? 0 : Float(self.currentVolume)
-			self.currentVolume = volume
+			log("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
+			self.player?.volume = self.effectiveVolume
+			self.requestedVolume = volume
 			self.player?.play()
-			self.fadePlayer(from: player.volume, to: volume, over: duration)
+			self.fadePlayer(from: player.volume, to: self.effectiveVolume, over: duration)
 			if !fadingIn {
 				self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
 				self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
 			}
 		} else {
-			if fadingIn { self.play(at: track.volume) }
+			self.requestedVolume = track.volume
+			if fadingIn { self.play(at: self.effectiveVolume) }
 		}
 	}
 	
@@ -171,8 +178,8 @@ class AudioFilePlayer: NSObject, AudioSource {
 	func play(at volume: Float) {
 		self.player?.volume = 0
 		self.player?.play()
-		self.currentVolume = volume
-		self.player?.volume = isMuted ? 0 : volume
+		self.requestedVolume = volume
+		self.player?.volume = self.effectiveVolume
 	}
 }
 

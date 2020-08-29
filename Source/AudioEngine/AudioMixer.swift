@@ -37,18 +37,21 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
-	public func play(fadeIn fade: AudioTrack.Fade? = nil) throws {
+	public func play(fadeIn fade: AudioTrack.Fade? = nil, completion: (() -> Void)? = nil) throws {
 		channels.values.forEach { try? $0.play(fadeIn: fade) }
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 	}
 	
-	func mute(to factor: Float, fading: AudioTrack.Fade) {
-		self.playingChannels.forEach { $0.mute(to: factor, fading: fading) }
+	func mute(to factor: Float, fading fade: AudioTrack.Fade, completion: (() -> Void)? = nil) {
+		self.playingChannels.forEach { $0.mute(to: factor, fading: fade) }
 		channelPlayStateChanged()
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 
 	
-	public func pause(fadeOut fade: AudioTrack.Fade = .default) {
+	public func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
 		channels.values.forEach { $0.pause(fadeOut: fade) }
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 	
 	public func reset() {

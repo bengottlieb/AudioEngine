@@ -61,12 +61,12 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.name = name
 	}
 	
-	public func play(fadeIn fade: AudioTrack.Fade? = nil) throws {
+	public func play(fadeIn fade: AudioTrack.Fade? = nil, completion: (() -> Void)? = nil) throws {
 		if let pausedAt = self.pausedAt {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
 			totalPauseTime += pauseDuration
-			self.players.forEach { _ = try? $0.play(fadeIn: fade) }
+			self.players.forEach { _ = try? $0.play(fadeIn: fade, completion: nil) }
 			if let transitionAt = self.willTransitionAt {
 				willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
 				transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false) { _ in
@@ -85,16 +85,21 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			self.isPlaying = true
 			log("done setting up channel \(self.name)", .verbose)
 		}
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
-	public func pause(fadeOut fade: AudioTrack.Fade = .default) {
-		if self.pausedAt != nil || self.startedAt == nil { return }
+	public func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+		if self.pausedAt != nil || self.startedAt == nil {
+			completion?()
+			return
+		}
 		self.pausedAt = Date(timeIntervalSinceNow: fade.duration ?? 0)
-		self.players.forEach { $0.pause(fadeOut: fade) }
+		self.players.forEach { $0.pause(fadeOut: fade, completion: nil) }
 		self.transitionTimer?.invalidate()
 		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
 		AudioMixer.instance.channelPlayStateChanged()
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 	
 	public func reset() {
@@ -107,15 +112,16 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.clear()
 	}
 	
-	func mute(to factor: Float = 1.0, fading: AudioTrack.Fade = .default) {
-		self.players.forEach { $0.mute(to: factor, fading: fading) }
+	func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+		self.players.forEach { $0.mute(to: factor, fading: fade, completion: nil) }
 		AudioMixer.instance.channelPlayStateChanged()
+		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 	
 	private func clear() {
 		self.totalPauseTime = 0
 		self.pausedAt = nil
-		self.currentPlayer?.pause(fadeOut: .abrupt)
+		self.currentPlayer?.pause(fadeOut: .abrupt, completion: nil)
 		self.currentPlayer = nil
 	}
 	
@@ -176,9 +182,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			return
 		}
 		
-//		let fadeOut = track.fadeOut ?? self.inheritedFadeOut
-//		let fadeIn = track.fadeIn ?? self.inheritedFadeIn
-
 		var transitionTime = track.duration
 		if self.shouldCrossFade, let next = self.queue[index + 1] {
 			let fadeOutDuration = track.duration(for: track.fadeOut)
@@ -189,9 +192,9 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		
 		do {
 			currentPlayer = try self.newPlayer(for: track)
-			try currentPlayer?.play(fadeIn: .default)
+			try currentPlayer?.play(fadeIn: .default, completion: nil)
 			
-			if self.isMuted { currentPlayer?.mute(to: 0, fading: .abrupt) }
+			if self.isMuted { currentPlayer?.mute(to: 0, fading: .abrupt, completion: nil) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
 			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
 				self.startNextTrack()
@@ -203,7 +206,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	
 	func end(player: AudioPlayer?) {
 		guard let player = player else { return }
-		player.pause(fadeOut: .abrupt)
+		player.pause(fadeOut: .abrupt, completion: nil)
 	//	self.availablePlayers.insert(player)
 	}
 	
@@ -213,7 +216,9 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 //			return next
 //		}
 		
-		return try track.buildPlayer(in: self, fadeIn: track.fadeIn ?? inheritedFadeIn, fadeOut: track.fadeOut ?? inheritedFadeOut)
+		let player = try track.buildPlayer(in: self, fadeIn: track.fadeIn ?? inheritedFadeIn, fadeOut: track.fadeOut ?? inheritedFadeOut)
+		player.mute(to: muteFactor, fading: .abrupt, completion: nil)
+		return player
 	}
 	
 	func track(at offset: TimeInterval) -> AudioTrack? {
