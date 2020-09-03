@@ -8,10 +8,10 @@ import AVFoundation
 import Suite
 
 public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifiable {
-	enum CodingKeys: String, CodingKey { case url, volume, name, duration, fadeIn, fadeOut }
+	enum CodingKeys: String, CodingKey { case url, id, volume, name, duration, fadeIn, fadeOut }
 	
-	public let id = UUID()
-	
+	public let id: String
+
 	public static var silenceURL = URL(fileURLWithPath: "/")
 	public let url: URL
 	public var volume: Float = 1.0
@@ -25,11 +25,12 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public var isSilence: Bool { self.url == Self.silenceURL }
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
-	public init(url: URL, name: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Fade? = nil, fadeOut: Fade? = nil) {
+	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Fade? = nil, fadeOut: Fade? = nil) {
 		self.asset = AVURLAsset(url: url)
 		self.url = url
 		self.volume = volume
 		self.name = name ?? url.deletingPathExtension().lastPathComponent
+		self.id = id?.isEmpty == false ? id! : UUID().uuidString
 		self.duration = duration ?? CMTimeGetSeconds(asset.duration)
 		self.fadeIn = fadeIn
 		self.fadeOut = fadeOut
@@ -42,6 +43,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		self.url = try container.decode(URL.self, forKey: .url)
 		self.asset = AVURLAsset(url: self.url)
 		self.name = try container.decode(String.self, forKey: .name)
+		self.id = try container.decode(String.self, forKey: .id)
 		self.duration = try container.decode(TimeInterval.self, forKey: .duration)
 		self.fadeIn = try? container.decode(Fade.self, forKey: .fadeIn)
 		self.fadeOut = try? container.decode(Fade.self, forKey: .fadeOut)
