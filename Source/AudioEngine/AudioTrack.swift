@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifiable {
+public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifiable, Hashable {
 	enum CodingKeys: String, CodingKey { case url, id, volume, name, duration, fadeIn, fadeOut }
 	
 	public let id: String
@@ -23,6 +23,8 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public var requestedRange: Range<TimeInterval>?													// if only part of it is required
 	public var effectiveDuration: TimeInterval { requestedRange?.delta ?? duration }		// the total amount of time the sound should be played for
 	public var isSilence: Bool { self.url == Self.silenceURL }
+	
+	public func hash(into hasher: inout Hasher) { self.id.hash(into: &hasher) }
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
 	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Fade? = nil, fadeOut: Fade? = nil) {
@@ -60,7 +62,6 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		try AudioFilePlayer()
 			.load(track: self.adjustingFade(in: fadeIn, out: fadeOut), into: channel)
 			.preload()
-
 	}
 	
 	static func silence(duration: TimeInterval) -> AudioTrack { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol AudioPlayer {
+public protocol AudioPlayer {
 	func pause(fadeOut: AudioTrack.Fade, completion: (() -> Void)?)
 	func play(fadeIn: AudioTrack.Fade?, completion: (() -> Void)?) throws
 	func mute(to factor: Float, fading: AudioTrack.Fade, completion: (() -> Void)?)
@@ -15,9 +15,11 @@ protocol AudioPlayer {
 	var isPlaying: Bool { get }
 	var isMuted: Bool { get }
 	var isDucked: Bool { get }
+
+	var currentlyPlaying: Set<AudioTrack> { get }
 }
 
-protocol AudioSource: AudioPlayer {
+public protocol AudioSource: AudioPlayer {
 	var track: AudioTrack? { get }
 	func load(track: AudioTrack, into channel: AudioChannel) throws -> Self
 }

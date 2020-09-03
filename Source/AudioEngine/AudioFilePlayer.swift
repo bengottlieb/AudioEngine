@@ -11,7 +11,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var requestedVolume: Float = 0.0
-	var startedAt: TimeInterval?
+	var startedAt: Date?
 	var pausedAt: Date?
 	var isMuted: Bool { muteFactor == 1 }
 	var isDucked: Bool { muteFactor < 1 && muteFactor > 0 }
@@ -25,8 +25,9 @@ class AudioFilePlayer: NSObject, AudioSource {
 	weak var pauseTimer: Timer?
 	private var timers: [Timer] { [fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
 
-	var isPlaying: Bool { startedAt != nil }
-	
+	var isPlaying: Bool { startedAt != nil && pausedAt == nil }
+	public var currentlyPlaying: Set<AudioTrack> { (isPlaying && track != nil) ? Set([track!]) : [] }
+
 	var timeRemaining: TimeInterval {
 		guard let player = self.player else { return 0 }
 		return player.duration - player.currentTime
@@ -68,11 +69,12 @@ class AudioFilePlayer: NSObject, AudioSource {
 				endTimerFireDate = fireAt.addingTimeInterval(delta)
 				self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
 			}
+			self.channel?.playStateChanged()
 			return
 		}
 		
 		try self.preload()
-
+		self.startedAt = Date()
 		self.requestedVolume = track.volume
 		let fadeIn = fade ?? track.fadeIn ?? self.channel?.fadeIn ?? .default
 		if fadeIn.exists {
@@ -86,6 +88,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		if duration > 0 {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
 		}
+		self.channel?.playStateChanged()
 	}
 	
 	func mute(to factor: Float, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
@@ -93,6 +96,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		if self.muteFactor == factor { return }
 		self.muteFactor = factor
 		self.player?.setVolume(self.effectiveVolume, fadeDuration: fade.duration ?? 0)
+		self.channel?.playStateChanged()
 	}
 	
 	func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
@@ -110,6 +114,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 			self.player?.volume = 0.0
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+		self.channel?.playStateChanged()
 	}
 	
 	override var description: String {
@@ -120,6 +125,8 @@ class AudioFilePlayer: NSObject, AudioSource {
 	func reset() {
 		self.pause(fadeOut: .abrupt)
 		self.player?.stop()
+		self.startedAt = nil
+		self.pausedAt = nil
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
 	}

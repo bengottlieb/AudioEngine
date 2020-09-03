@@ -34,7 +34,10 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	var willTransitionAt: Date?
 
 	public var canPlay: Bool { self.queue.isEmpty == false }
-	
+	public var currentlyPlaying: Set<AudioTrack> {
+		Set(self.players.reduce([]) { $0 + $1.currentlyPlaying })
+	}
+
 	private var inheritedFadeIn: AudioTrack.Fade { fadeIn ?? AudioMixer.instance.fadeIn }
 	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
 	
@@ -43,9 +46,9 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	
 	//private var availablePlayers: Set<Player> = []
 	private var currentPlayer: AudioSource? { didSet { self.currentTrack = currentPlayer?.track }}
-	private var fadingOutPlayer: AudioPlayer?
+	private var fadingOutPlayer: AudioSource?
 	private weak var transitionTimer: Timer?
-	private var players: [AudioPlayer] { [currentPlayer, fadingOutPlayer].compactMap { $0 }}
+	private var players: [AudioSource] { [currentPlayer, fadingOutPlayer].compactMap { $0 }}
 	
 	var muteFactor: Float = 0.0 { didSet { self.mute(to: muteFactor) }}
 
@@ -86,7 +89,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			log("done setting up channel \(self.name)", .verbose)
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
-		AudioMixer.instance.channelPlayStateChanged()
 	}
 	
 	public func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
@@ -98,8 +100,12 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.players.forEach { $0.pause(fadeOut: fade, completion: nil) }
 		self.transitionTimer?.invalidate()
 		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
-		AudioMixer.instance.channelPlayStateChanged()
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+	}
+	
+	func playStateChanged() {
+		self.objectWillChange.sendOnMainThread()
+		AudioMixer.instance.playStateChanged()
 	}
 	
 	public func reset() {
@@ -112,9 +118,8 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.clear()
 	}
 	
-	func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+	public func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
 		self.players.forEach { $0.mute(to: factor, fading: fade, completion: nil) }
-		AudioMixer.instance.channelPlayStateChanged()
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 	

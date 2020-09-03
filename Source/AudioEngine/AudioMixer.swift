@@ -28,11 +28,13 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		get { self.playingChannels.reduce(true) { $0 && $1.isDucked }}
 		set {
 			self.playingChannels.forEach { $0.muteFactor = newValue ? self.duckMuteFactor : 0 }
-			channelPlayStateChanged()
 		}
 	}
 	
 	public var duckMuteFactor: Float = 0.9
+	public var currentlyPlaying: Set<AudioTrack> {
+		Set(channels.values.reduce([]) { $0 + $1.currentlyPlaying })
+	}
 
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
@@ -42,9 +44,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 	}
 	
-	func mute(to factor: Float, fading fade: AudioTrack.Fade, completion: (() -> Void)? = nil) {
+	public func mute(to factor: Float, fading fade: AudioTrack.Fade, completion: (() -> Void)? = nil) {
 		self.playingChannels.forEach { $0.mute(to: factor, fading: fade) }
-		channelPlayStateChanged()
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
 	}
 
@@ -58,8 +59,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		channels.values.forEach { $0.reset() }
 	}
 	
-	func channelPlayStateChanged() {
-		self.objectWillChange.send()
+	func playStateChanged() {
+		self.objectWillChange.sendOnMainThread()
 	}
 
 	internal func register(channel: AudioChannel) {
