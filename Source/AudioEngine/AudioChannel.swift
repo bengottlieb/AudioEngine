@@ -118,9 +118,10 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.clear()
 	}
 	
-	public func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
-		self.players.forEach { $0.mute(to: factor, fading: fade, completion: nil) }
-		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+	public func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+		let actualFade = self.isPlaying ? fade : .abrupt
+		self.players.forEach { $0.mute(to: factor, fading: actualFade, completion: nil) }
+		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
 	}
 	
 	private func clear() {

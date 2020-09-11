@@ -13,6 +13,7 @@ extension AudioTrack {
 		var exists: Bool { (duration ?? 0) > 0 }
 		
 		static public var `default` = Fade.linear(0.2)
+		static public var defaultDuck = Fade.linear(1.0)
 
 		var name: String {
 			switch self {

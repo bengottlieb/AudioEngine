@@ -91,11 +91,12 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.channel?.playStateChanged()
 	}
 	
-	func mute(to factor: Float, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
-		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+	func mute(to factor: Float, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+		let actualFade = self.isPlaying ? fade : .abrupt
+		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
 		if self.muteFactor == factor { return }
 		self.muteFactor = factor
-		self.player?.setVolume(self.effectiveVolume, fadeDuration: fade.duration ?? 0)
+		self.player?.setVolume(self.effectiveVolume, fadeDuration: actualFade.duration ?? 0)
 		self.channel?.playStateChanged()
 	}
 	

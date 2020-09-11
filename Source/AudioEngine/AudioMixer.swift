@@ -44,9 +44,10 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 	}
 	
-	public func mute(to factor: Float, fading fade: AudioTrack.Fade, completion: (() -> Void)? = nil) {
-		self.playingChannels.forEach { $0.mute(to: factor, fading: fade) }
-		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+	public func mute(to factor: Float, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+		let actualFade = self.isPlaying ? fade : .abrupt
+		self.playingChannels.forEach { $0.mute(to: factor, fading: actualFade) }
+		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
 	}
 
 	
