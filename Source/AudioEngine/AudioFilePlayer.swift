@@ -139,7 +139,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		let player = try AVAudioPlayer(contentsOf: track.url)
 		self.player = player
 		player.prepareToPlay()
-		if track.duration > player.duration { player.numberOfLoops = -1 }
+		if track.duration > player.duration * 1.1 { player.numberOfLoops = -1 }
 		log(.break, .verbose)
 		log("ready to play \(track)", .verbose)
 		return self
