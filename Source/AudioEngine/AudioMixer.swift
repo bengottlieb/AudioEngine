@@ -37,7 +37,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var canPlay: Bool { self.channels.values.reduce(false) { $0 || $1.canPlay } }
 
 	public var isDucked: Bool {
-		get { ! self.playingChannels.isEmpty && self.playingChannels.reduce(true) { $0 && $1.isDucked }}
+		get { !self.playingChannels.isEmpty && self.playingChannels.reduce(true) { $0 && $1.isDucked }}
 		set {
 			self.playingChannels.forEach { $0.muteFactor = newValue ? self.duckMuteFactor : 0 }
 		}
