@@ -20,6 +20,18 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		get { self.playingChannels.reduce(true) { $0 && $1.isMuted }}
 		set { self.mute(to: newValue ? 1 : 0, fading: .default) }
 	}
+	
+	public var allowRecording = false { didSet { self.updateSession() }}
+	
+	init() {
+		self.updateSession()
+	}
+	
+	func updateSession() {
+		let audioSession = AVAudioSession.sharedInstance()
+		try? audioSession.setCategory(allowRecording ? .playAndRecord : .playback, options: [.allowBluetoothA2DP, .allowAirPlay, .defaultToSpeaker, .duckOthers])
+		try? audioSession.setActive(true)
+	}
 
 	public var isPlaying: Bool { self.playingChannels.contains { $0.isPaused == false } }
 	public var canPlay: Bool { self.channels.values.reduce(false) { $0 || $1.canPlay } }
@@ -44,9 +56,10 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 	}
 	
-	public func mute(to factor: Float, fading fade: AudioTrack.Fade, completion: (() -> Void)? = nil) {
-		self.playingChannels.forEach { $0.mute(to: factor, fading: fade) }
-		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+	public func mute(to factor: Float, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+		let actualFade = self.isPlaying ? fade : .abrupt
+		self.playingChannels.forEach { $0.mute(to: factor, fading: actualFade) }
+		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
 	}
 
 	
