@@ -116,6 +116,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.currentTrackIndex = nil
 		self.isPlaying = false
 		self.clear()
+		self.queue = AudioQueue()
 	}
 	
 	public func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
