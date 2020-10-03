@@ -114,7 +114,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 			self.player?.pause()
 			self.player?.volume = 0.0
 		}
-		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { comp() } }
 		self.channel?.playStateChanged()
 	}
 	

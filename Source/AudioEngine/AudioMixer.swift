@@ -65,7 +65,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	
 	public func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
 		channels.values.forEach { $0.pause(fadeOut: fade) }
-		DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { completion?() }
+		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { comp() } }
 	}
 	
 	public func reset() {
