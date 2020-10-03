@@ -16,8 +16,8 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public let url: URL
 	public var volume: Float = 1.0
 	public var name: String
-	public var fadeIn: Fade?
-	public var fadeOut: Fade?
+	public var fadeIn: Segue?
+	public var fadeOut: Segue?
 	public let asset: AVURLAsset
 	public var duration: TimeInterval = 0												// this is the actual duration the associated audio
 	public var requestedRange: Range<TimeInterval>?													// if only part of it is required
@@ -27,7 +27,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public func hash(into hasher: inout Hasher) { self.id.hash(into: &hasher) }
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
-	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Fade? = nil, fadeOut: Fade? = nil) {
+	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Segue? = nil, fadeOut: Segue? = nil) {
 		self.asset = AVURLAsset(url: url)
 		self.url = url
 		self.volume = volume
@@ -47,18 +47,18 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		self.name = try container.decode(String.self, forKey: .name)
 		self.id = try container.decode(String.self, forKey: .id)
 		self.duration = try container.decode(TimeInterval.self, forKey: .duration)
-		self.fadeIn = try? container.decode(Fade.self, forKey: .fadeIn)
-		self.fadeOut = try? container.decode(Fade.self, forKey: .fadeOut)
+		self.fadeIn = try? container.decode(Segue.self, forKey: .fadeIn)
+		self.fadeOut = try? container.decode(Segue.self, forKey: .fadeOut)
 	}
 	
-	func adjustingFade(in fadeIn: Fade?, out fadeOut: Fade?) -> Self {
+	func adjustingFade(in fadeIn: Segue?, out fadeOut: Segue?) -> Self {
 		var copy = self
 		copy.fadeIn = fadeIn ?? self.fadeIn
 		copy.fadeOut = fadeOut ?? self.fadeOut
 		return copy
 	}
 	
-	func buildPlayer(in channel: AudioChannel, fadeIn: Fade?, fadeOut: Fade?) throws -> AudioSource {
+	func buildPlayer(in channel: AudioChannel, fadeIn: Segue?, fadeOut: Segue?) throws -> AudioSource {
 		try AudioFilePlayer()
 			.load(track: self.adjustingFade(in: fadeIn, out: fadeOut), into: channel)
 			.preload()
@@ -66,7 +66,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	
 	static func silence(duration: TimeInterval) -> AudioTrack { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }
 	
-	func duration(for fade: Fade?) -> TimeInterval {
+	func duration(for fade: Segue?) -> TimeInterval {
 		guard let duration = fade?.duration else { return 0 }
 		if duration > self.duration / 2 { return self.duration / 2 }
 		return duration

@@ -14,8 +14,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public static let instance = AudioMixer()
 	public var startedAt: Date? { self.playingChannels.first?.startedAt }
 
-	public var fadeIn: AudioTrack.Fade = .linear(1)
-	public var fadeOut: AudioTrack.Fade = .linear(1)
+	public var fadeIn: AudioTrack.Segue = .linearFade(1)
+	public var fadeOut: AudioTrack.Segue = .linearFade(1)
 	public var isMuted: Bool {
 		get { self.playingChannels.reduce(true) { $0 && $1.isMuted }}
 		set { self.mute(to: newValue ? 1 : 0, fading: .default) }
@@ -51,19 +51,19 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
-	public func play(fadeIn fade: AudioTrack.Fade? = nil, completion: (() -> Void)? = nil) throws {
+	public func play(fadeIn fade: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) throws {
 		channels.values.forEach { try? $0.play(fadeIn: fade) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 	}
 	
-	public func mute(to factor: Float, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+	public func mute(to factor: Float, fading fade: AudioTrack.Segue = .defaultDuck, completion: (() -> Void)? = nil) {
 		let actualFade = self.isPlaying ? fade : .abrupt
 		self.playingChannels.forEach { $0.mute(to: factor, fading: actualFade) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
 	}
 
 	
-	public func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+	public func pause(fadeOut fade: AudioTrack.Segue = .default, completion: (() -> Void)? = nil) {
 		channels.values.forEach { $0.pause(fadeOut: fade) }
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { comp() } }
 	}

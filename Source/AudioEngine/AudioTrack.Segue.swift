@@ -1,5 +1,5 @@
 //
-//  AudioTrack.Fade.swift
+//  AudioTrack.Segue.swift
 //  AudioEngine
 //
 
@@ -7,27 +7,32 @@ import Foundation
 
 
 extension AudioTrack {
-	public enum Fade: Codable { case abrupt, constantPower(TimeInterval), linear(TimeInterval)
+	public struct Transition: Codable {
+		public var intro: Segue
+		public var outro: Segue?
+	}
+	
+	public enum Segue: Codable { case abrupt, constantPowerFade(TimeInterval), linearFade(TimeInterval)
 		enum CodingKeys: String, CodingKey { case name, duration }
 		
 		var exists: Bool { (duration ?? 0) > 0 }
 		
-		static public var `default` = Fade.linear(0.2)
-		static public var defaultDuck = Fade.linear(1.0)
+		static public var `default` = Segue.linearFade(0.2)
+		static public var defaultDuck = Segue.linearFade(1.0)
 
 		var name: String {
 			switch self {
 			case .abrupt: return "abrupt"
-			case .constantPower(_): return "constant"
-			case .linear(_): return "linear"
+			case .constantPowerFade(_): return "constant"
+			case .linearFade(_): return "linear"
 			}
 		}
 
 		var duration: Double? {
 			switch self {
 			case .abrupt: return nil
-			case .constantPower(let duration): return duration
-			case .linear(let duration): return duration
+			case .constantPowerFade(let duration): return duration
+			case .linearFade(let duration): return duration
 			}
 		}
 		
@@ -38,11 +43,11 @@ extension AudioTrack {
 			case "abrupt": self = .abrupt
 			case "linear":
 				let duration = try container.decode(TimeInterval.self, forKey: .duration)
-				self = .linear(duration)
+				self = .linearFade(duration)
 			case "constantPower":
 				let duration = try container.decode(TimeInterval.self, forKey: .duration)
-				self = .constantPower(duration)
-			default: self = .linear(5)
+				self = .constantPowerFade(duration)
+			default: self = .linearFade(5)
 			}
 		}
 		
@@ -58,8 +63,8 @@ extension AudioTrack {
 		public func normalized(forMaxDuration max: TimeInterval) -> Self {
 			guard let duration = self.duration, duration > max else { return self }
 			switch self {
-			case .linear(_): return .linear(max)
-			case .constantPower(_): return .constantPower(max)
+			case .linearFade(_): return .linearFade(max)
+			case .constantPowerFade(_): return .constantPowerFade(max)
 			case .abrupt: return self
 			}
 		}

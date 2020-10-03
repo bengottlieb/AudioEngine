@@ -49,7 +49,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.requestedVolume * (1.0 - self.muteFactor)
 	}
 	
-	func play(fadeIn fade: AudioTrack.Fade?, completion: (() -> Void)? = nil) throws {
+	func play(fadeIn fade: AudioTrack.Segue?, completion: (() -> Void)? = nil) throws {
 		guard let track = self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
@@ -91,7 +91,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.channel?.playStateChanged()
 	}
 	
-	func mute(to factor: Float, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+	func mute(to factor: Float, fading fade: AudioTrack.Segue = .defaultDuck, completion: (() -> Void)? = nil) {
 		let actualFade = self.isPlaying ? fade : .abrupt
 		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
 		if self.muteFactor == factor { return }
@@ -100,7 +100,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.channel?.playStateChanged()
 	}
 	
-	func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+	func pause(fadeOut fade: AudioTrack.Segue = .default, completion: (() -> Void)? = nil) {
 		if self.pausedAt == nil {
 			self.pausedAt = Date()
 		}
@@ -145,7 +145,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		return self
 	}
 	
-	func apply(_ fade: AudioTrack.Fade, in fadingIn: Bool, to volume: Float) {
+	func apply(_ fade: AudioTrack.Segue, in fadingIn: Bool, to volume: Float) {
 		guard let track = self.track, let player = self.player else { return }
 		let duration = track.duration(for: fade)
 		

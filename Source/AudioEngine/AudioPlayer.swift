@@ -8,9 +8,9 @@
 import Foundation
 
 public protocol AudioPlayer {
-	func pause(fadeOut: AudioTrack.Fade, completion: (() -> Void)?)
-	func play(fadeIn: AudioTrack.Fade?, completion: (() -> Void)?) throws
-	func mute(to factor: Float, fading: AudioTrack.Fade, completion: (() -> Void)?)
+	func pause(fadeOut: AudioTrack.Segue, completion: (() -> Void)?)
+	func play(fadeIn: AudioTrack.Segue?, completion: (() -> Void)?) throws
+	func mute(to factor: Float, fading: AudioTrack.Segue, completion: (() -> Void)?)
 	func reset()
 	var isPlaying: Bool { get }
 	var isMuted: Bool { get }

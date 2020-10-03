@@ -23,8 +23,8 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		set { self.muteFactor = newValue ? 1 : 0 }
 	}
 	public var isDucked: Bool { self.muteFactor < 1 && self.muteFactor > 0 }
-	public var fadeIn: AudioTrack.Fade?
-	public var fadeOut: AudioTrack.Fade?
+	public var fadeIn: AudioTrack.Segue?
+	public var fadeOut: AudioTrack.Segue?
 	public var shouldCrossFade = true
 	
 	public static var mainChannelName = "Main"
@@ -38,8 +38,8 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		Set(self.players.reduce([]) { $0 + $1.currentlyPlaying })
 	}
 
-	private var inheritedFadeIn: AudioTrack.Fade { fadeIn ?? AudioMixer.instance.fadeIn }
-	private var inheritedFadeOut: AudioTrack.Fade { fadeOut ?? AudioMixer.instance.fadeOut }
+	private var inheritedFadeIn: AudioTrack.Segue { fadeIn ?? AudioMixer.instance.fadeIn }
+	private var inheritedFadeOut: AudioTrack.Segue { fadeOut ?? AudioMixer.instance.fadeOut }
 	
 	public var currentTrackIndex: Int?
 	private var pendingTrackIndex: Int?
@@ -64,7 +64,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.name = name
 	}
 	
-	public func play(fadeIn fade: AudioTrack.Fade? = nil, completion: (() -> Void)? = nil) throws {
+	public func play(fadeIn fade: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) throws {
 		if let pausedAt = self.pausedAt {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
@@ -76,7 +76,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 					self.startNextTrack()
 				}
 			}
-			log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
+			log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		} else {
 			if self.isPlaying { return }			// already playing
 			self.clear()
@@ -91,7 +91,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		DispatchQueue.main.asyncAfter(deadline: .now() + (fade?.duration ?? 0)) { completion?() }
 	}
 	
-	public func pause(fadeOut fade: AudioTrack.Fade = .default, completion: (() -> Void)? = nil) {
+	public func pause(fadeOut fade: AudioTrack.Segue = .default, completion: (() -> Void)? = nil) {
 		if self.pausedAt != nil || self.startedAt == nil {
 			completion?()
 			return
@@ -99,7 +99,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.pausedAt = Date(timeIntervalSinceNow: fade.duration ?? 0)
 		self.players.forEach { $0.pause(fadeOut: fade, completion: nil) }
 		self.transitionTimer?.invalidate()
-		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(includingNanoseconds: true))")
+		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + (fade.duration ?? 0)) { comp() } }
 	}
 	
@@ -119,7 +119,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.queue = AudioQueue()
 	}
 	
-	public func mute(to factor: Float = 1.0, fading fade: AudioTrack.Fade = .defaultDuck, completion: (() -> Void)? = nil) {
+	public func mute(to factor: Float = 1.0, fading fade: AudioTrack.Segue = .defaultDuck, completion: (() -> Void)? = nil) {
 		let actualFade = self.isPlaying ? fade : .abrupt
 		self.players.forEach { $0.mute(to: factor, fading: actualFade, completion: nil) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + (actualFade.duration ?? 0)) { completion?() }
@@ -147,7 +147,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.queue = queue
 	}
 	
-	public func enqueue(track: AudioTrack, fadeIn: AudioTrack.Fade? = nil, fadeOut: AudioTrack.Fade? = nil) {
+	public func enqueue(track: AudioTrack, fadeIn: AudioTrack.Segue? = nil, fadeOut: AudioTrack.Segue? = nil) {
 		self.queue.append(track, fadeIn: fadeIn, fadeOut: fadeOut)
 	}
 	
