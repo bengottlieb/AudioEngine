@@ -31,27 +31,27 @@ public struct AudioQueue {
 	public func firstIndex(of track: AudioTrack) -> Int? { tracks.firstIndex(of: track) }
 	mutating public func clear() { self.tracks = [] }
 
-	public init(tracks: [AudioTrack] = [], fadeIn: AudioTrack.Segue? = nil, fadeOut: AudioTrack.Segue? = nil, useLoops: Bool = false) {
+	public init(tracks: [AudioTrack] = [], intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil, useLoops: Bool = false) {
 		self.tracks = []
 		self.useLoops = useLoops
 		tracks.forEach {
-			self.append($0, fadeIn: fadeIn, fadeOut: fadeOut)
+			self.append($0, intro: intro, outro: outro)
 		}
 	}
 	
-	mutating public func append(_ track: AudioTrack, fadeIn: AudioTrack.Segue? = nil, fadeOut: AudioTrack.Segue? = nil) {
-		var newTrack = track.adjustingFade(in: fadeIn, out: fadeOut)
+	mutating public func append(_ track: AudioTrack, intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil) {
+		var newTrack = track.adjustingFade(in: intro, out: outro)
 
 		if useLoops, let lastTrack = self.tracks.last, lastTrack == track {
 			newTrack = lastTrack
 			newTrack.duration += track.duration
-			self.tracks[self.tracks.count - 1] = newTrack.adjustingFade(in: lastTrack.fadeIn, out: fadeOut)
+			self.tracks[self.tracks.count - 1] = newTrack.adjustingFade(in: lastTrack.intro, out: outro)
 		} else {
 			self.tracks.append(newTrack)
 		}
 	}
 		
-	public func totalDuration(crossFade: Bool = true, fadeIn defaultFadeIn: AudioTrack.Segue? = nil, requiredFadeIn: Bool = false, fadeOut defaultFadeOut: AudioTrack.Segue? = nil, requiredFadeOut: Bool = false) -> TimeInterval {
+	public func totalDuration(crossFade: Bool = true, intro defaultIntro: AudioTrack.Segue? = nil, requiredIntro: Bool = false, outro defaultOutro: AudioTrack.Segue? = nil, requiredOutro: Bool = false) -> TimeInterval {
 		
 		var total: TimeInterval = 0
 		
@@ -59,13 +59,13 @@ public struct AudioQueue {
 			var trackDuration = track.duration
 			
 			if !useLoops {
-				let fadeIn = track.fadeIn ?? defaultFadeIn ?? .linearFade(2)
-				let fadeOut = track.fadeOut ?? defaultFadeOut ?? .linearFade(2)
-				let fadeInDuration = track.duration(for: fadeIn)
-				let fadeOutDuration = track.duration(for: fadeOut)
+				let intro = track.intro ?? defaultIntro ?? .linearFade(2)
+				let outro = track.outro ?? defaultOutro ?? .linearFade(2)
+				let introDuration = track.duration(for: intro)
+				let outroDuration = track.duration(for: outro)
 				
-				if index != 0, crossFade { trackDuration -= fadeInDuration / 2 }
-				if index != (tracks.count - 1), crossFade { trackDuration -= fadeOutDuration / 2 }
+				if index != 0, crossFade { trackDuration -= introDuration / 2 }
+				if index != (tracks.count - 1), crossFade { trackDuration -= outroDuration / 2 }
 			}
 
 			total += trackDuration

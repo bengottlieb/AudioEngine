@@ -8,7 +8,7 @@ import AVFoundation
 import Suite
 
 public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifiable, Hashable {
-	enum CodingKeys: String, CodingKey { case url, id, volume, name, duration, fadeIn, fadeOut }
+	enum CodingKeys: String, CodingKey { case url, id, volume, name, duration, intro, outro }
 	
 	public let id: String
 
@@ -16,8 +16,8 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public let url: URL
 	public var volume: Float = 1.0
 	public var name: String
-	public var fadeIn: Segue?
-	public var fadeOut: Segue?
+	public var intro: Segue?
+	public var outro: Segue?
 	public let asset: AVURLAsset
 	public var duration: TimeInterval = 0												// this is the actual duration the associated audio
 	public var requestedRange: Range<TimeInterval>?													// if only part of it is required
@@ -27,15 +27,15 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public func hash(into hasher: inout Hasher) { self.id.hash(into: &hasher) }
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
-	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, fadeIn: Segue? = nil, fadeOut: Segue? = nil) {
+	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, intro: Segue? = nil, outro: Segue? = nil) {
 		self.asset = AVURLAsset(url: url)
 		self.url = url
 		self.volume = volume
 		self.name = name ?? url.deletingPathExtension().lastPathComponent
 		self.id = id?.isEmpty == false ? id! : UUID().uuidString
 		self.duration = duration ?? CMTimeGetSeconds(asset.duration)
-		self.fadeIn = fadeIn
-		self.fadeOut = fadeOut
+		self.intro = intro
+		self.outro = outro
 	}
 	
 	public init(from decoder: Decoder) throws {
@@ -47,20 +47,20 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 		self.name = try container.decode(String.self, forKey: .name)
 		self.id = try container.decode(String.self, forKey: .id)
 		self.duration = try container.decode(TimeInterval.self, forKey: .duration)
-		self.fadeIn = try? container.decode(Segue.self, forKey: .fadeIn)
-		self.fadeOut = try? container.decode(Segue.self, forKey: .fadeOut)
+		self.intro = try? container.decode(Segue.self, forKey: .intro)
+		self.outro = try? container.decode(Segue.self, forKey: .outro)
 	}
 	
-	func adjustingFade(in fadeIn: Segue?, out fadeOut: Segue?) -> Self {
+	func adjustingFade(in intro: Segue?, out outro: Segue?) -> Self {
 		var copy = self
-		copy.fadeIn = fadeIn ?? self.fadeIn
-		copy.fadeOut = fadeOut ?? self.fadeOut
+		copy.intro = intro ?? self.intro
+		copy.outro = outro ?? self.outro
 		return copy
 	}
 	
-	func buildPlayer(in channel: AudioChannel, fadeIn: Segue?, fadeOut: Segue?) throws -> AudioSource {
+	func buildPlayer(in channel: AudioChannel, intro: Segue?, outro: Segue?) throws -> AudioSource {
 		try AudioFilePlayer()
-			.load(track: self.adjustingFade(in: fadeIn, out: fadeOut), into: channel)
+			.load(track: self.adjustingFade(in: intro, out: outro), into: channel)
 			.preload()
 	}
 	

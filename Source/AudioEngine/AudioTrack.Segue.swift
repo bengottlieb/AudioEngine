@@ -10,12 +10,23 @@ extension AudioTrack {
 	public struct Transition: Codable {
 		public var intro: Segue
 		public var outro: Segue?
+		
+		public var duration: TimeInterval {
+			max(intro.duration, (outro?.duration ?? 0))
+		}
+		
+		public init(intro: Segue, outro: Segue? = nil) {
+			self.intro = intro
+			self.outro = outro
+		}
+
+		static public var `default` = Transition(intro: .default, outro: nil)
 	}
 	
 	public enum Segue: Codable { case abrupt, constantPowerFade(TimeInterval), linearFade(TimeInterval)
 		enum CodingKeys: String, CodingKey { case name, duration }
 		
-		var exists: Bool { (duration ?? 0) > 0 }
+		var exists: Bool { duration > 0 }
 		
 		static public var `default` = Segue.linearFade(0.2)
 		static public var defaultDuck = Segue.linearFade(1.0)
@@ -28,9 +39,9 @@ extension AudioTrack {
 			}
 		}
 
-		var duration: Double? {
+		var duration: Double {
 			switch self {
-			case .abrupt: return nil
+			case .abrupt: return 0
 			case .constantPowerFade(let duration): return duration
 			case .linearFade(let duration): return duration
 			}
@@ -55,13 +66,11 @@ extension AudioTrack {
 			var container = encoder.container(keyedBy: CodingKeys.self)
 			
 			try container.encode(self.name, forKey: .name)
-			if let duration = self.duration {
-				try container.encode(duration, forKey: .duration)
-			}
+			try container.encode(duration, forKey: .duration)
 		}
 		
 		public func normalized(forMaxDuration max: TimeInterval) -> Self {
-			guard let duration = self.duration, duration > max else { return self }
+			guard self.duration > max else { return self }
 			switch self {
 			case .linearFade(_): return .linearFade(max)
 			case .constantPowerFade(_): return .constantPowerFade(max)
