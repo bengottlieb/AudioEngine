@@ -15,6 +15,7 @@ public protocol AudioPlayer {
 	var isPlaying: Bool { get }
 	var isMuted: Bool { get }
 	var isDucked: Bool { get }
+	var transitionState: AudioTrack.Transition.State { get }
 
 	var currentlyPlaying: Set<AudioTrack> { get }
 }

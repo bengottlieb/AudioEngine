@@ -20,7 +20,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	}
 	
 	public var allowRecording = false { didSet { self.updateSession() }}
-	
+	public var transitionState: AudioTrack.Transition.State { self.playingChannels.reduce(.none) { $0 + $1.transitionState }}
+
 	init() {
 		self.updateSession()
 	}

@@ -17,6 +17,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	@Published public var currentTrack: AudioTrack?
 	@Published public var currentDuration: TimeInterval = 0
 	
+	public var transitionState: AudioTrack.Transition.State { self.players.reduce(.none) { $0 + ($1.isPlaying ? $1.transitionState : .none) }}
 	public var isPaused: Bool { self.pausedAt != nil }
 	public var isMuted: Bool {
 		get { self.muteFactor == 1 }
@@ -62,6 +63,18 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	public func play(transition: AudioTrack.Transition, completion: (() -> Void)? = nil) throws {
+		if let current = self.currentPlayer {
+			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
+			if current.transitionState != .outroing {
+				current.pause(outro: .abrupt, completion: nil)
+			}
+			self.fadingOutPlayer = current
+			self.pausedAt = nil
+			self.startedAt	= nil
+			self.isPlaying = false
+			self.currentPlayer = nil
+		}
+		
 		if let pausedAt = self.pausedAt {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
@@ -76,7 +89,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		} else {
 			if self.isPlaying { return }			// already playing
-			self.clear()
+		//	self.clear()
 
 			self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, intro: self.defaultChannelFadeIn, outro: self.defaultChannelFadeOut)
 			self.startedAt = Date()
@@ -178,8 +191,8 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			self.currentTrackIndex = 0
 		}
 		
-		fadingOutPlayer = currentPlayer
-		currentPlayer = nil
+//		fadingOutPlayer = currentPlayer
+//		currentPlayer = nil
 
 		guard let index = self.currentTrackIndex, let track = self.queue[index] else {
 			self.ended()

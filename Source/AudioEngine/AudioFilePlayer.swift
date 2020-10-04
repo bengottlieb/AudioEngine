@@ -18,6 +18,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 	var isDucked: Bool { muteFactor < 1 && muteFactor > 0 }
 	var muteFactor: Float = 0.0
 	weak var channel: AudioChannel?
+	var transitionState: AudioTrack.Transition.State = .none
 	
 	var endTimerFireDate: Date?
 	weak var fadeOutTimer: Timer?
@@ -26,7 +27,8 @@ class AudioFilePlayer: NSObject, AudioSource {
 	weak var pauseTimer: Timer?
 	private var timers: [Timer] { [fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
 
-	var isPlaying: Bool { startedAt != nil && pausedAt == nil }
+	var isPlaying: Bool { player?.isPlaying == true }
+//	var isPlaying: Bool { startedAt != nil && pausedAt == nil && player?.isPlaying == true }
 	public var currentlyPlaying: Set<AudioTrack> { (isPlaying && track != nil) ? Set([track!]) : [] }
 
 	var timeRemaining: TimeInterval {
@@ -58,12 +60,17 @@ class AudioFilePlayer: NSObject, AudioSource {
 			
 			if transition.duration > 0 {
 				self.player?.volume = 0.0
+				self.transitionState = .introing
 				self.player?.play()
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: transition.intro.duration)
-				DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
+				DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) {
+					if self.transitionState == .introing { self.transitionState = .none }
+					completion?()
+				}
 			} else {
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: 0)
 				self.player?.play()
+				self.transitionState = .none
 				completion?()
 			}
 			if let fireAt = endTimerFireDate {
@@ -108,9 +115,13 @@ class AudioFilePlayer: NSObject, AudioSource {
 		}
 		self.timers.forEach { $0.invalidate() }
 		if segue.duration > 0 {
+			let initialState: AudioTrack.Transition.State = outro == nil ? .introing : .outroing
+			self.transitionState = initialState
 			self.player?.setVolume(0.0, fadeDuration: segue.duration)
 			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: segue.duration, repeats: false) { _ in
+				self.transitionState = .introing
 				self.player?.pause()
+				if self.transitionState == initialState { self.transitionState = .outroing }
 			}
 		} else {
 			self.player?.pause()
@@ -127,6 +138,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 	
 	func reset() {
 		self.pause(outro: .abrupt)
+		self.transitionState = .none
 		self.player?.stop()
 		self.startedAt = nil
 		self.pausedAt = nil

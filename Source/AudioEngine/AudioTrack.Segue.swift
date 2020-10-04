@@ -11,6 +11,16 @@ extension AudioTrack {
 		public var intro: Segue
 		public var outro: Segue?
 		
+		public enum State { case none, introing, outroing, inAndOutroing
+			static func +(lhs: State, rhs: State) -> State {
+				if lhs == rhs { return lhs }
+				if lhs == .none { return rhs }
+				if rhs == .none { return lhs }
+				return .inAndOutroing
+			}
+		}
+		
+		
 		public var duration: TimeInterval {
 			max(intro.duration, (outro?.duration ?? 0))
 		}
