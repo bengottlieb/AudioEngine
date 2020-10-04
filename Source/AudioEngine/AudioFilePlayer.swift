@@ -13,6 +13,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 	var requestedVolume: Float = 0.0
 	var outro: AudioTrack.Segue?
 	var startedAt: Date?
+	var endedAt: Date?
 	var pausedAt: Date?
 	var isMuted: Bool { muteFactor == 1 }
 	var isDucked: Bool { muteFactor < 1 && muteFactor > 0 }
@@ -27,9 +28,10 @@ class AudioFilePlayer: NSObject, AudioSource {
 	weak var pauseTimer: Timer?
 	private var timers: [Timer] { [fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
 
-	var isPlaying: Bool { player?.isPlaying == true }
+	var isPlaying: Bool { player?.isPlaying == true && endedAt == nil }
 //	var isPlaying: Bool { startedAt != nil && pausedAt == nil && player?.isPlaying == true }
 	public var currentlyPlaying: Set<AudioTrack> { (isPlaying && track != nil) ? Set([track!]) : [] }
+	public var currentlyPlayingNotFadingOut: Set<AudioTrack> { return (transitionState == .outroing) ? [] : currentlyPlaying }
 
 	var timeRemaining: TimeInterval {
 		guard let player = self.player else { return 0 }
@@ -83,6 +85,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		
 		try self.preload()
 		self.startedAt = Date()
+		self.endedAt = nil
 		self.requestedVolume = track.volume
 //		let fadeIn = transition.intro ?? track.fadeIn ?? self.channel?.defaultChannelFadeIn ?? .default
 		if transition.intro.duration > 0 {
@@ -92,7 +95,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 			self.play(at: self.effectiveVolume)
 		}
 		
-		let duration = track.duration(for: track.outro ?? .default)
+		let duration = track.duration(of: track.outro ?? .default)
 		if duration > 0 {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
 		}
@@ -108,12 +111,16 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.channel?.playStateChanged()
 	}
 	
+	func invalidateTimers() {
+		self.timers.forEach { $0.invalidate() }
+	}
+	
 	func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
 		let segue = outro ?? self.outro ?? .default
 		if self.pausedAt == nil {
 			self.pausedAt = Date()
 		}
-		self.timers.forEach { $0.invalidate() }
+		self.invalidateTimers()
 		if segue.duration > 0 {
 			let initialState: AudioTrack.Transition.State = outro == nil ? .introing : .outroing
 			self.transitionState = initialState
@@ -141,6 +148,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.transitionState = .none
 		self.player?.stop()
 		self.startedAt = nil
+		self.endedAt = nil
 		self.pausedAt = nil
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
@@ -162,7 +170,8 @@ class AudioFilePlayer: NSObject, AudioSource {
 	func apply(intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil, to volume: Float) {
 		guard let track = self.track, let player = self.player else { return }
 		guard let segue = intro ?? outro else { return }
-		let duration = track.duration(for: segue)
+		let duration = track.duration(of: segue)
+		self.transitionState = intro == nil ? .outroing : .introing
 		
 		if duration > 0 {
 			log("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
@@ -171,9 +180,12 @@ class AudioFilePlayer: NSObject, AudioSource {
 			self.player?.play()
 			self.fadePlayer(from: player.volume, to: self.effectiveVolume, over: duration)
 			if intro == nil {
+				print("playing for \(duration)")
 				self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
 				self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
 			}
+		} else if intro == nil {
+			self.didFinishPlaying()
 		} else {
 			self.requestedVolume = track.volume
 			if outro == nil { self.play(at: self.effectiveVolume) }
@@ -207,7 +219,12 @@ class AudioFilePlayer: NSObject, AudioSource {
 }
 
 extension AudioFilePlayer {
-	func didFinishPlaying() { log("Finished playing \(track!)") }
+	func didFinishPlaying() {
+		log("Finished playing \(track!)")
+		self.transitionState = .none
+		self.endedAt = Date()
+		AudioMixer.instance.objectWillChange.send()
+	}
 	
 	func didBeginFadeOut(_ duration: TimeInterval) {
 		let segue = self.outro ?? self.track?.outro ?? self.channel?.defaultChannelFadeOut ?? .default

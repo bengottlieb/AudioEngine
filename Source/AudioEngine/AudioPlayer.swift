@@ -18,6 +18,7 @@ public protocol AudioPlayer {
 	var transitionState: AudioTrack.Transition.State { get }
 
 	var currentlyPlaying: Set<AudioTrack> { get }
+	var currentlyPlayingNotFadingOut: Set<AudioTrack> { get }
 }
 
 public protocol AudioSource: AudioPlayer {

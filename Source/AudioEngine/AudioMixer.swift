@@ -46,6 +46,9 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var currentlyPlaying: Set<AudioTrack> {
 		Set(channels.values.reduce([]) { $0 + $1.currentlyPlaying })
 	}
+	public var currentlyPlayingNotFadingOut: Set<AudioTrack> {
+		Set(channels.values.reduce([]) { $0 + $1.currentlyPlayingNotFadingOut })
+	}
 
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}

@@ -33,7 +33,7 @@ extension AudioTrack {
 		static public var `default` = Transition(intro: .default, outro: nil)
 	}
 	
-	public enum Segue: Codable { case abrupt, constantPowerFade(TimeInterval), linearFade(TimeInterval)
+	public enum Segue: Codable, Equatable { case abrupt, constantPowerFade(TimeInterval), linearFade(TimeInterval)
 		enum CodingKeys: String, CodingKey { case name, duration }
 		
 		var exists: Bool { duration > 0 }
@@ -88,5 +88,13 @@ extension AudioTrack {
 			}
 		}
 		
+		public static func ==(lhs: Segue, rhs: Segue) -> Bool {
+			switch (lhs, rhs) {
+			case (.abrupt, .abrupt): return true
+			case (.linearFade(let lhDuration), .linearFade(let rhDuration)): return lhDuration == rhDuration
+			case (.constantPowerFade(let lhDuration), .constantPowerFade(let rhDuration)): return lhDuration == rhDuration
+			default: return false
+			}
+		}
 	}
 }
