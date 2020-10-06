@@ -53,8 +53,8 @@ public extension AudioPlayer {
 	var isDucked: Bool { state.contains(.ducked) }
 	var isPlayingFullOn: Bool { state == .playing }
 	
-	var nonFadingTracks: [AudioTrack] {
-		activePlayers.filter({ $0.isPlayingFullOn }).flatMap { $0.activeTracks }
+	var nonOutroingTracks: [AudioTrack] {
+		activePlayers.filter({ !$0.state.contains(.outroing) && $0.state.contains(.playing) }).flatMap { $0.activeTracks }
 	}
 }
 
