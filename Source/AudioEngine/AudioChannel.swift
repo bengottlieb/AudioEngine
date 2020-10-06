@@ -62,7 +62,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	public func play(transition: AudioTrack.Transition, completion: (() -> Void)? = nil) throws {
 		if let current = self.currentPlayer {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
-			if current.state != .outroing {
+			if !current.state.contains(.outroing) {
 				current.pause(outro: .abrupt, completion: nil)
 			}
 			self.fadingOutPlayer = current
@@ -99,7 +99,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	public func pause(outro: AudioTrack.Segue?, completion: (() -> Void)? = nil) {
-		if self.state == .outroing, outro != .abrupt { return }
+		if self.state.contains(.outroing), outro != .abrupt { return }
 		if self.pausedAt != nil || self.startedAt == nil {
 			completion?()
 			return
