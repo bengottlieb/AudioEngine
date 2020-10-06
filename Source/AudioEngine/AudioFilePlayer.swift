@@ -129,16 +129,16 @@ class AudioFilePlayer: NSObject, AudioSource, ObservableObject {
 	}
 	
 	func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
-		if !self.isPlaying { return }
+		guard let track = self.track, self.isPlaying else { return }
 		let segue = outro ?? self.outro ?? .default
-		if self.pausedAt == nil {
-			self.pausedAt = Date()
-		}
+		if self.pausedAt == nil { self.pausedAt = Date() }
 		self.invalidateTimers()
-		if segue.duration > 0 {
+		
+		let outroDuration = track.duration(of: segue)
+		if outroDuration > 0 {
 			state.formUnion(.outroing)
-			self.player?.setVolume(0.0, fadeDuration: segue.duration)
-			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: segue.duration, repeats: false) { _ in
+			self.player?.setVolume(0.0, fadeDuration: outroDuration)
+			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: outroDuration, repeats: false) { _ in
 				self.state.remove([.playing, .introing, .outroing])
 				self.player?.pause()
 			}
@@ -147,7 +147,7 @@ class AudioFilePlayer: NSObject, AudioSource, ObservableObject {
 			self.player?.pause()
 			self.player?.volume = 0.0
 		}
-		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + segue.duration) { comp() } }
+		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + outroDuration) { comp() } }
 		self.channel?.playStateChanged()
 	}
 	

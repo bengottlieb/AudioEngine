@@ -41,6 +41,7 @@ public protocol AudioPlayer {
 	func mute(to factor: Float, segue: AudioTrack.Segue, completion: (() -> Void)?)
 	func reset()
 	var state: PlayerState { get }
+	var timeRemaining: TimeInterval { get }
 
 	var activeTracks: [AudioTrack] { get }
 	var activePlayers: [AudioPlayer] { get }

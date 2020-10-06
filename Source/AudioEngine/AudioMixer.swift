@@ -80,4 +80,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		
 		return newMain
 	}
+	
+	public var timeRemaining: TimeInterval {
+		self.channels.values.reduce(0) { max($0, $1.timeRemaining) }
+	}
 }

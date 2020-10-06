@@ -104,11 +104,29 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			completion?()
 			return
 		}
-		self.pausedAt = Date(timeIntervalSinceNow: outro?.duration ?? 0)
+		let duration = self.duration(of: outro)
+		self.pausedAt = Date(timeIntervalSinceNow: duration)
 		self.players.forEach { $0.pause(outro: outro, completion: nil) }
 		self.transitionTimer?.invalidate()
 		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
-		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + (outro?.duration ?? 0)) { comp() } }
+		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + duration) { comp() } }
+	}
+	
+	func duration(of segue: AudioTrack.Segue?) -> TimeInterval {
+		guard let duration = segue?.duration, duration > 0 else { return 0 }
+		
+		return min(timeRemaining, duration)
+	}
+	
+	public var timeRemaining: TimeInterval {
+		var minRemaining: TimeInterval = 0
+		
+		for player in self.activePlayers {
+			let remaining = player.timeRemaining
+			if remaining > minRemaining { minRemaining = remaining }
+		}
+		
+		return minRemaining
 	}
 	
 	func playStateChanged() {
@@ -144,11 +162,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		guard let startedAt = self.startedAt else { return nil }
 		let date = self.pausedAt ?? Date()
 		return abs(startedAt.timeIntervalSince(date)) - totalPauseTime
-	}
-	
-	public var timeRemaining: TimeInterval {
-		guard let elapsed = timeElapsed else { return 0 }
-		return currentDuration - elapsed
 	}
 	
 	public func setQueue(_ queue: AudioQueue) {
