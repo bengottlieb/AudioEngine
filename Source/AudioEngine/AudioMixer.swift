@@ -14,14 +14,9 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public static let instance = AudioMixer()
 	public var startedAt: Date? { self.playingChannels.first?.startedAt }
 
-	public var isMuted: Bool {
-		get { self.playingChannels.reduce(true) { $0 && $1.isMuted }}
-		set { self.mute(to: newValue ? 1 : 0, segue: .default) }
-	}
-	
 	public var allowRecording = false { didSet { self.updateSession() }}
-	public var transitionState: AudioTrack.Transition.State { self.playingChannels.reduce(.none) { $0 + $1.transitionState }}
-
+	public var state: PlayerState { self.channels.values.reduce([]) { $0.union($1.state) }}
+	
 	init() {
 		self.updateSession()
 	}
@@ -32,7 +27,6 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		try? audioSession.setActive(true)
 	}
 
-	public var isPlaying: Bool { self.playingChannels.contains { $0.isPaused == false } }
 	public var canPlay: Bool { self.channels.values.reduce(false) { $0 || $1.canPlay } }
 
 	public var isDucked: Bool {
@@ -42,14 +36,10 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		}
 	}
 	
-	public var duckMuteFactor: Float = 0.9
-	public var currentlyPlaying: Set<AudioTrack> {
-		Set(channels.values.reduce([]) { $0 + $1.currentlyPlaying })
-	}
-	public var currentlyPlayingNotFadingOut: Set<AudioTrack> {
-		Set(channels.values.reduce([]) { $0 + $1.currentlyPlayingNotFadingOut })
-	}
-
+	public var duckMuteFactor: Float = 0.5
+	public var activeTracks: [AudioTrack] { self.channels.values.reduce([]) { $0 + $1.activeTracks } }
+	public var activePlayers: [AudioPlayer] { self.channels.values.reduce([]) { $0 + $1.activePlayers } }
+	
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	

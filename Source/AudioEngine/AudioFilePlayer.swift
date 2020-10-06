@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-class AudioFilePlayer: NSObject, AudioSource {
+class AudioFilePlayer: NSObject, AudioSource, ObservableObject {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var requestedVolume: Float = 0.0
@@ -15,27 +15,33 @@ class AudioFilePlayer: NSObject, AudioSource {
 	var startedAt: Date?
 	var endedAt: Date?
 	var pausedAt: Date?
-	var isMuted: Bool { muteFactor == 1 }
-	var isDucked: Bool { muteFactor < 1 && muteFactor > 0 }
 	var muteFactor: Float = 0.0
 	weak var channel: AudioChannel?
-	var transitionState: AudioTrack.Transition.State = .none
 	
 	var endTimerFireDate: Date?
+	weak var fadeInTimer: Timer?
 	weak var fadeOutTimer: Timer?
 	weak var endTimer: Timer?
 	weak var volumeFadeTimer: Timer?
 	weak var pauseTimer: Timer?
-	private var timers: [Timer] { [fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
+	private var timers: [Timer] { [fadeInTimer, fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
 
-	var isPlaying: Bool { player?.isPlaying == true && endedAt == nil }
-//	var isPlaying: Bool { startedAt != nil && pausedAt == nil && player?.isPlaying == true }
-	public var currentlyPlaying: Set<AudioTrack> { (isPlaying && track != nil) ? Set([track!]) : [] }
-	public var currentlyPlayingNotFadingOut: Set<AudioTrack> { return (transitionState == .outroing) ? [] : currentlyPlaying }
+	public var state: PlayerState = [] { didSet {
+		guard state != oldValue, let track = self.track else { return }
+		self.objectWillChange.send()
+		self.channel?.playStateChanged()
+		print("State for \(track.name) changed to \(state)")
+	}}
 
 	var timeRemaining: TimeInterval {
 		guard let player = self.player else { return 0 }
 		return player.duration - player.currentTime
+	}
+	
+	var activePlayers: [AudioPlayer] { self.isPlaying ? [self] : [] }
+	var activeTracks: [AudioTrack] {
+		guard let track = self.track, self.isPlaying else { return [] }
+		return [track]
 	}
 	
 	deinit {
@@ -62,23 +68,20 @@ class AudioFilePlayer: NSObject, AudioSource {
 			
 			if transition.duration > 0 {
 				self.player?.volume = 0.0
-				self.transitionState = .introing
+				self.state = [.introing, .playing]
 				self.player?.play()
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: transition.intro.duration)
 				DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) {
-					if self.transitionState == .introing { self.transitionState = .none }
+					self.state.remove(.introing)
 					completion?()
 				}
 			} else {
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: 0)
+				self.state = .playing
 				self.player?.play()
-				self.transitionState = .none
 				completion?()
 			}
-			if let fireAt = endTimerFireDate {
-				endTimerFireDate = fireAt.addingTimeInterval(delta)
-				self.endTimer = Timer.scheduledTimer(withTimeInterval: abs(endTimerFireDate!.timeIntervalSinceNow), repeats: false) { _ in self.didFinishPlaying() }
-			}
+			if let fireAt = endTimerFireDate { self.setupEndTimer(duration: abs(fireAt.addingTimeInterval(delta).timeIntervalSinceNow), outroAt: track.outro?.duration) }
 			self.channel?.playStateChanged()
 			return
 		}
@@ -89,17 +92,27 @@ class AudioFilePlayer: NSObject, AudioSource {
 		self.requestedVolume = track.volume
 //		let fadeIn = transition.intro ?? track.fadeIn ?? self.channel?.defaultChannelFadeIn ?? .default
 		if transition.intro.duration > 0 {
+			self.state = [.playing, .introing]
 			self.apply(intro: transition.intro, to: self.requestedVolume)
 		} else {
+			self.state = .playing
 			self.requestedVolume = track.volume
 			self.play(at: self.effectiveVolume)
 		}
 		
 		let duration = track.duration(of: track.outro ?? .default)
-		if duration > 0 {
-			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: track.effectiveDuration - duration, repeats: false) { _ in self.didBeginFadeOut(duration) }
+		self.setupEndTimer(duration: track.effectiveDuration - duration, outroAt: track.outro?.duration)
+	}
+	
+	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
+		self.fadeOutTimer?.invalidate()
+		self.endTimer?.invalidate()
+		self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
+		self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
+		
+		if let fadeDuration = outroAt, fadeDuration > 0 {
+			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: duration - fadeDuration, repeats: false) { _ in self.didBeginFadeOut(fadeDuration) }
 		}
-		self.channel?.playStateChanged()
 	}
 	
 	func mute(to factor: Float, segue: AudioTrack.Segue = .defaultDuck, completion: (() -> Void)? = nil) {
@@ -116,21 +129,21 @@ class AudioFilePlayer: NSObject, AudioSource {
 	}
 	
 	func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
+		if !self.isPlaying { return }
 		let segue = outro ?? self.outro ?? .default
 		if self.pausedAt == nil {
 			self.pausedAt = Date()
 		}
 		self.invalidateTimers()
 		if segue.duration > 0 {
-			let initialState: AudioTrack.Transition.State = outro == nil ? .introing : .outroing
-			self.transitionState = initialState
+			state.formUnion(.outroing)
 			self.player?.setVolume(0.0, fadeDuration: segue.duration)
 			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: segue.duration, repeats: false) { _ in
-				self.transitionState = .introing
+				self.state.remove([.playing, .introing, .outroing])
 				self.player?.pause()
-				if self.transitionState == initialState { self.transitionState = .outroing }
 			}
 		} else {
+			self.state.remove([.playing, .introing, .outroing])
 			self.player?.pause()
 			self.player?.volume = 0.0
 		}
@@ -145,7 +158,7 @@ class AudioFilePlayer: NSObject, AudioSource {
 	
 	func reset() {
 		self.pause(outro: .abrupt)
-		self.transitionState = .none
+		self.state = []
 		self.player?.stop()
 		self.startedAt = nil
 		self.endedAt = nil
@@ -171,7 +184,8 @@ class AudioFilePlayer: NSObject, AudioSource {
 		guard let track = self.track, let player = self.player else { return }
 		guard let segue = intro ?? outro else { return }
 		let duration = track.duration(of: segue)
-		self.transitionState = intro == nil ? .outroing : .introing
+		self.state.formUnion(intro == nil ? .outroing : .introing)
+		self.fadeInTimer?.invalidate()
 		
 		if duration > 0 {
 			log("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
@@ -179,10 +193,8 @@ class AudioFilePlayer: NSObject, AudioSource {
 			self.requestedVolume = volume
 			self.player?.play()
 			self.fadePlayer(from: player.volume, to: self.effectiveVolume, over: duration)
-			if intro == nil {
-				print("playing for \(duration)")
-				self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
-				self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
+			self.fadeInTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
+				self.state.remove([.introing, .outroing])
 			}
 		} else if intro == nil {
 			self.didFinishPlaying()
@@ -221,12 +233,13 @@ class AudioFilePlayer: NSObject, AudioSource {
 extension AudioFilePlayer {
 	func didFinishPlaying() {
 		log("Finished playing \(track!)")
-		self.transitionState = .none
+		self.state = []
 		self.endedAt = Date()
 		AudioMixer.instance.objectWillChange.send()
 	}
 	
 	func didBeginFadeOut(_ duration: TimeInterval) {
+		self.state.formUnion(.outroing)
 		let segue = self.outro ?? self.track?.outro ?? self.channel?.defaultChannelFadeOut ?? .default
 		apply(outro: segue, to: 0)
 	}

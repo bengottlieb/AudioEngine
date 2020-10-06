@@ -17,31 +17,25 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	@Published public var currentTrack: AudioTrack?
 	@Published public var currentDuration: TimeInterval = 0
 	
-	public var transitionState: AudioTrack.Transition.State { self.players.reduce(.none) { $0 + ($1.isPlaying ? $1.transitionState : .none) }}
-	public var isPaused: Bool { self.pausedAt != nil }
-	public var isMuted: Bool {
-		get { self.muteFactor == 1 }
-		set { self.muteFactor = newValue ? 1 : 0 }
-	}
-	public var isDucked: Bool { self.muteFactor < 1 && self.muteFactor > 0 }
 	public var defaultChannelFadeIn: AudioTrack.Segue?
 	public var defaultChannelFadeOut: AudioTrack.Segue?
 	public var shouldCrossFade = true
 	
 	public static var mainChannelName = "Main"
-	
+	public var state: PlayerState { self.players.reduce([]) { $0.union($1.state) }}
+
 	var totalPauseTime: TimeInterval = 0
 	var startedAt: Date?
 	var willTransitionAt: Date?
 
 	public var canPlay: Bool { self.queue.isEmpty == false }
 	public var currentlyPlaying: Set<AudioTrack> {
-		Set(self.players.reduce([]) { $0 + $1.currentlyPlaying })
-	}
-	public var currentlyPlayingNotFadingOut: Set<AudioTrack> {
-		Set(self.players.reduce([]) { $0 + $1.currentlyPlayingNotFadingOut })
+		Set(self.players.reduce([]) { $0 + (($1.isPlaying && $1.track != nil) ? [$1.track!] : []) })
 	}
 	
+	public var activeTracks: [AudioTrack] { self.players.reduce([]) { $0 + $1.activeTracks } }
+	public var activePlayers: [AudioPlayer] { self.players.reduce([]) { $0 + $1.activePlayers } }
+
 	public var currentTrackIndex: Int?
 	private var pendingTrackIndex: Int?
 	
@@ -68,7 +62,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	public func play(transition: AudioTrack.Transition, completion: (() -> Void)? = nil) throws {
 		if let current = self.currentPlayer {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
-			if current.transitionState != .outroing {
+			if current.state != .outroing {
 				current.pause(outro: .abrupt, completion: nil)
 			}
 			self.fadingOutPlayer = current
@@ -105,7 +99,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	public func pause(outro: AudioTrack.Segue?, completion: (() -> Void)? = nil) {
-		if self.transitionState == .outroing, outro != .abrupt { return }
+		if self.state == .outroing, outro != .abrupt { return }
 		if self.pausedAt != nil || self.startedAt == nil {
 			completion?()
 			return
