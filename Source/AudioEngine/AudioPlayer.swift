@@ -42,9 +42,13 @@ public protocol AudioPlayer {
 	func reset()
 	var state: PlayerState { get }
 	var timeRemaining: TimeInterval { get }
+	var timeElapsed: TimeInterval { get }
 
 	var activeTracks: [AudioTrack] { get }
 	var activePlayers: [AudioPlayer] { get }
+	
+	func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
+	func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 }
 
 public extension AudioPlayer {

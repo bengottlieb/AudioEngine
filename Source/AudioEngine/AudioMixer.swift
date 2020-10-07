@@ -29,13 +29,6 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 
 	public var canPlay: Bool { self.channels.values.reduce(false) { $0 || $1.canPlay } }
 
-	public var isDucked: Bool {
-		get { !self.playingChannels.isEmpty && self.playingChannels.reduce(true) { $0 && $1.isDucked }}
-		set {
-			self.playingChannels.forEach { $0.muteFactor = newValue ? self.duckMuteFactor : 0 }
-		}
-	}
-	
 	public var duckMuteFactor: Float = 0.5
 	public var activeTracks: [AudioTrack] { self.channels.values.reduce([]) { $0 + $1.activeTracks } }
 	public var activePlayers: [AudioPlayer] { self.channels.values.reduce([]) { $0 + $1.activePlayers } }
@@ -84,4 +77,23 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var timeRemaining: TimeInterval {
 		self.channels.values.reduce(0) { max($0, $1.timeRemaining) }
 	}
+	
+	public var timeElapsed: TimeInterval {
+		self.channels.values.reduce(0) { max($0, $1.timeElapsed) }
+	}
+	
+	public func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
+		self.channels.values.forEach { $0.setDucked(on: on, segue: segue, completion: nil) }
+		if let comp = completion {
+			DispatchQueue.main.asyncAfter(deadline: .now() + segue.duration, execute: comp)
+		}
+	}
+
+	public func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
+		self.channels.values.forEach { $0.setMuted(on: on, segue: segue, completion: nil) }
+		if let comp = completion {
+			DispatchQueue.main.asyncAfter(deadline: .now() + segue.duration, execute: comp)
+		}
+	}
+
 }

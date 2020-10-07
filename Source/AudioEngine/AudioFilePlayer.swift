@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-class AudioFilePlayer: NSObject, AudioSource, ObservableObject {
+class AudioFilePlayer: NSObject, ObservableObject {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var requestedVolume: Float = 0.0
@@ -33,17 +33,6 @@ class AudioFilePlayer: NSObject, AudioSource, ObservableObject {
 		print("State for \(track.name) changed to \(state)")
 	}}
 
-	var timeRemaining: TimeInterval {
-		guard let player = self.player else { return 0 }
-		return player.duration - player.currentTime
-	}
-	
-	var activePlayers: [AudioPlayer] { self.isPlaying ? [self] : [] }
-	var activeTracks: [AudioTrack] {
-		guard let track = self.track, self.isPlaying else { return [] }
-		return [track]
-	}
-	
 	deinit {
 		self.reset()
 	}
@@ -131,7 +120,7 @@ class AudioFilePlayer: NSObject, AudioSource, ObservableObject {
 	func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
 		guard let track = self.track, self.isPlaying else { return }
 		let segue = outro ?? self.outro ?? .default
-		if self.pausedAt == nil { self.pausedAt = Date() }
+		if self.pausedAt == nil { self.pausedAt = Date(timeIntervalSinceNow: segue.duration) }
 		self.invalidateTimers()
 		
 		let outroDuration = track.duration(of: segue)
@@ -243,4 +232,47 @@ extension AudioFilePlayer {
 		let segue = self.outro ?? self.track?.outro ?? self.channel?.defaultChannelFadeOut ?? .default
 		apply(outro: segue, to: 0)
 	}
+}
+
+extension AudioFilePlayer: AudioSource {
+	var timeRemaining: TimeInterval {
+		guard let player = self.player else { return 0 }
+		return player.duration - player.currentTime
+	}
+	
+	var timeElapsed: TimeInterval {
+		guard let started = startedAt else { return 0 }
+		var ended = Date()
+		if let paused = pausedAt, paused < ended { ended = paused }
+		let time = abs(started.timeIntervalSince(ended))
+		
+		return time
+	}
+	
+	public func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
+		if on {
+			self.state.formUnion(.ducked)
+		} else {
+			self.state.remove(.ducked)
+		}
+		self.mute(to: on ? AudioMixer.instance.duckMuteFactor : 0.0, segue: segue, completion: completion)
+	}
+
+	public func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
+		if on {
+			self.state.formUnion(.muted)
+		} else {
+			self.state.remove(.muted)
+		}
+		self.mute(to: on ? 1.0 : 0.0, segue: segue, completion: completion)
+	}
+
+	
+	var activePlayers: [AudioPlayer] { self.isPlaying ? [self] : [] }
+	var activeTracks: [AudioTrack] {
+		guard let track = self.track, self.isPlaying else { return [] }
+		return [track]
+	}
+	
+
 }

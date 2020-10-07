@@ -118,17 +118,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		return min(timeRemaining, duration)
 	}
 	
-	public var timeRemaining: TimeInterval {
-		var minRemaining: TimeInterval = 0
-		
-		for player in self.activePlayers {
-			let remaining = player.timeRemaining
-			if remaining > minRemaining { minRemaining = remaining }
-		}
-		
-		return minRemaining
-	}
-	
 	func playStateChanged() {
 		self.objectWillChange.sendOnMainThread()
 		AudioMixer.instance.playStateChanged()
@@ -158,12 +147,28 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.currentPlayer = nil
 	}
 	
-	public var timeElapsed: TimeInterval? {
-		guard let startedAt = self.startedAt else { return nil }
-		let date = self.pausedAt ?? Date()
-		return abs(startedAt.timeIntervalSince(date)) - totalPauseTime
+	public var timeElapsed: TimeInterval {
+		self.players.reduce(0) { max($0, $1.timeElapsed) }
 	}
 	
+	public var timeRemaining: TimeInterval {
+		self.players.reduce(0) { max($0, $1.timeRemaining) }
+	}
+	
+	public func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
+		self.players.forEach { $0.setDucked(on: on, segue: segue, completion: nil) }
+		if let comp = completion {
+			DispatchQueue.main.asyncAfter(deadline: .now() + segue.duration, execute: comp)
+		}
+	}
+
+	public func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
+		self.players.forEach { $0.setMuted(on: on, segue: segue, completion: nil) }
+		if let comp = completion {
+			DispatchQueue.main.asyncAfter(deadline: .now() + segue.duration, execute: comp)
+		}
+	}
+
 	public func setQueue(_ queue: AudioQueue) {
 		self.queue = queue
 	}
