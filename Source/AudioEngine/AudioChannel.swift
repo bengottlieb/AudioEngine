@@ -11,7 +11,6 @@ import Combine
 public class AudioChannel: ObservableObject, AudioPlayer {
 	public let name: String
 	
-	@Published public private(set) var isPlaying = false
 	@Published public private(set) var pausedAt: Date?
 	@Published public var queue = AudioQueue()
 	@Published public var currentTrack: AudioTrack?
@@ -68,7 +67,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			self.fadingOutPlayer = current
 			self.pausedAt = nil
 			self.startedAt	= nil
-			self.isPlaying = false
 			self.currentPlayer = nil
 		}
 		
@@ -92,7 +90,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			self.startedAt = Date()
 			log("starting channel \(self.name) at \(self.startedAt!)", .verbose)
 			self.startNextTrack()
-			self.isPlaying = true
 			log("done setting up channel \(self.name)", .verbose)
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
@@ -129,7 +126,6 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.pausedAt = nil
 		self.startedAt = nil
 		self.currentTrackIndex = nil
-		self.isPlaying = false
 		self.clear()
 		self.queue = AudioQueue()
 	}
