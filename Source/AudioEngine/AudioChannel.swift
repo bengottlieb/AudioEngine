@@ -83,7 +83,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			}
 			log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		} else {
-			if self.isPlaying { return }			// already playing
+			if self.isPlayingFullOn { return }			// already playing
 		//	self.clear()
 
 			self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, intro: self.defaultChannelFadeIn, outro: self.defaultChannelFadeOut)
