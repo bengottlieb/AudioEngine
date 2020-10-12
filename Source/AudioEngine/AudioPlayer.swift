@@ -32,26 +32,18 @@ public struct PlayerState: OptionSet, CustomStringConvertible {
 		
 		return text
 	}
-
 }
 
-public protocol AudioPlayer {
-	func pause(outro: AudioTrack.Segue?, completion: (() -> Void)?)
-	func play(transition: AudioTrack.Transition, completion: (() -> Void)?) throws
-	func mute(to factor: Float, segue: AudioTrack.Segue, completion: (() -> Void)?)
-	func reset()
+public protocol AudioReporting {
 	var state: PlayerState { get }
 	var timeRemaining: TimeInterval { get }
 	var timeElapsed: TimeInterval { get }
 
 	var activeTracks: [AudioTrack] { get }
 	var activePlayers: [AudioPlayer] { get }
-	
-	func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
-	func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 }
 
-public extension AudioPlayer {
+public extension AudioReporting {
 	var isPlaying: Bool { state != [] }
 	var isMuted: Bool { state.contains(.muted) }
 	var isDucked: Bool { state.contains(.ducked) }
@@ -60,9 +52,33 @@ public extension AudioPlayer {
 	var nonOutroingTracks: [AudioTrack] {
 		activePlayers.filter({ !$0.state.contains(.outroing) && $0.state.contains(.playing) }).flatMap { $0.activeTracks }
 	}
+
+	var nonOutroingPlayers: [AudioPlayer] {
+		activePlayers.filter({ !$0.state.contains(.outroing) && $0.state.contains(.playing) }).flatMap { $0.activePlayers }
+	}
+}
+
+public protocol AudioPlayer: AudioReporting {
+	func pause(outro: AudioTrack.Segue?, completion: (() -> Void)?)
+	func play(transition: AudioTrack.Transition, completion: (() -> Void)?) throws
+	func mute(to factor: Float, segue: AudioTrack.Segue, completion: (() -> Void)?)
+	func reset()
+	
+	func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
+	func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 }
 
 public protocol AudioSource: AudioPlayer {
 	var track: AudioTrack? { get }
 	func load(track: AudioTrack, into channel: AudioChannel) throws -> Self
 }
+
+extension Array: AudioReporting where Element: AudioReporting {
+	public var state: PlayerState { reduce(PlayerState()) { $0.union($1.state) } }
+	public var timeRemaining: TimeInterval { reduce(0) { Swift.max($0, $1.timeRemaining) } }
+	public var timeElapsed: TimeInterval { reduce(0) { Swift.max($0, $1.timeElapsed) } }
+	
+	public var activeTracks: [AudioTrack] { self.flatMap { ($0 as? AudioPlayer)?.activeTracks ?? [] } }
+	public var activePlayers: [AudioPlayer] { self.flatMap { ($0 as? AudioPlayer)?.activePlayers ?? [] }  }
+}
+
