@@ -58,7 +58,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	}
 	
 	func playStateChanged() {
-		self.objectWillChange.sendOnMainThread()
+		self.objectWillChange.sendOnMain()
 	}
 
 	internal func register(channel: AudioChannel) {

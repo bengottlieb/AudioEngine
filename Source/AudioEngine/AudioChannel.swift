@@ -116,7 +116,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	func playStateChanged() {
-		self.objectWillChange.sendOnMainThread()
+		self.objectWillChange.sendOnMain()
 		AudioMixer.instance.playStateChanged()
 	}
 	
