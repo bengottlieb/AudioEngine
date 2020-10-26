@@ -46,7 +46,6 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		self.playingChannels.forEach { $0.mute(to: factor, segue: actualFade) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + actualFade.duration) { completion?() }
 	}
-
 	
 	public func pause(outro: AudioTrack.Segue?, completion: (() -> Void)? = nil) {
 		channels.values.forEach { $0.pause(outro: outro) }

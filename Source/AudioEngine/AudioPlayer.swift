@@ -39,6 +39,7 @@ public protocol AudioReporting {
 	var timeRemaining: TimeInterval { get }
 	var timeElapsed: TimeInterval { get }
 
+	///Active indicates players that are still playing their tracks (or tracks still in their players), regardless of fade-out status
 	var activeTracks: [AudioTrack] { get }
 	var activePlayers: [AudioPlayer] { get }
 }
@@ -49,6 +50,20 @@ public extension AudioReporting {
 	var isDucked: Bool { state.contains(.ducked) }
 	var isPlayingFullOn: Bool { state == .playing }
 	
+	/// Main tracks are those that are playing full-on, or those that are fading out if no other tracks are playing
+	var mainTracks: [AudioTrack] {
+		var players = self.activePlayers
+		let outroingPlayers = players.filter({ !$0.state.contains(.outroing) && $0.state.contains(.playing) })
+		if outroingPlayers.count != players.count {
+			for player in outroingPlayers {
+				if let index = players.firstIndex(where: { $0 === player }) { players.remove(at: index) }
+			}
+		}
+		
+		return players.flatMap { $0.activeTracks }
+	}
+	
+	/// Non-Outroing tracks are those that are not fading out
 	var nonOutroingTracks: [AudioTrack] {
 		activePlayers.filter({ !$0.state.contains(.outroing) && $0.state.contains(.playing) }).flatMap { $0.activeTracks }
 	}
@@ -58,7 +73,7 @@ public extension AudioReporting {
 	}
 }
 
-public protocol AudioPlayer: AudioReporting {
+public protocol AudioPlayer: class, AudioReporting {
 	func pause(outro: AudioTrack.Segue?, completion: (() -> Void)?)
 	func play(transition: AudioTrack.Transition, completion: (() -> Void)?) throws
 	func mute(to factor: Float, segue: AudioTrack.Segue, completion: (() -> Void)?)
