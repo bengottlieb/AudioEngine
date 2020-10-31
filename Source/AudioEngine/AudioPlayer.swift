@@ -45,10 +45,10 @@ public protocol AudioReporting {
 }
 
 public extension AudioReporting {
-	var isPlaying: Bool { state != [] }
+	var isPlaying: Bool { state.contains(.playing) }
 	var isMuted: Bool { state.contains(.muted) }
 	var isDucked: Bool { state.contains(.ducked) }
-	var isPlayingFullOn: Bool { state == .playing }
+	var isPlayingFullOn: Bool { state.contains(.playing) && !(state.contains(.outroing) || state.contains(.introing)) }
 	
 	/// Main tracks are those that are playing full-on, or those that are fading out if no other tracks are playing
 	var mainTracks: [AudioTrack] {
