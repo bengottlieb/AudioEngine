@@ -38,6 +38,7 @@ public protocol AudioReporting {
 	var state: PlayerState { get }
 	var timeRemaining: TimeInterval { get }
 	var timeElapsed: TimeInterval { get }
+	var isPaused: Bool { get }
 
 	///Active indicates players that are still playing their tracks (or tracks still in their players), regardless of fade-out status
 	var activeTracks: [AudioTrack] { get }
@@ -78,7 +79,7 @@ public protocol AudioPlayer: class, AudioReporting {
 	func play(transition: AudioTrack.Transition, completion: (() -> Void)?) throws
 	func mute(to factor: Float, segue: AudioTrack.Segue, completion: (() -> Void)?)
 	func reset()
-	
+
 	func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 	func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 }
@@ -95,5 +96,7 @@ extension Array: AudioReporting where Element: AudioReporting {
 	
 	public var activeTracks: [AudioTrack] { self.flatMap { ($0 as? AudioPlayer)?.activeTracks ?? [] } }
 	public var activePlayers: [AudioPlayer] { self.flatMap { ($0 as? AudioPlayer)?.activePlayers ?? [] }  }
+	
+	public var isPaused: Bool { !self.activePlayers.filter({ $0.isPaused }).isEmpty }
 }
 
