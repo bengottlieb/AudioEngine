@@ -12,7 +12,9 @@ import Accelerate
 
 public class AudioAnalysis: ObservableObject, Identifiable {
 	public enum AudioAnalysisError: Error { case failedToCreateBuffer, failedToReadBuffer, noAudioTrackFound, invalidAudioTrack, unableToConstructAsset, failedToCreateTrack, failedToLoadTrack, failedToSetupTrack }
-	public enum State { case idle, loading, loaded, failedToLoad }
+	public enum State: Int, Comparable { case idle, failedToLoad, loading, loaded, sampled
+		public static func <(lhs: State, rhs: State) -> Bool { lhs.rawValue < rhs.rawValue }
+	}
 	
 	public let url: URL
 	@Published public var state = State.idle
@@ -23,19 +25,20 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 	
 	public var name: String { self.url.deletingPathExtension().lastPathComponent }
 
-
 	var track: AVAssetTrack!
 	var reader: AVAssetReader!
-	var numberOfSamples: Int!
-	var numberOfChannels: Int!
-	var sampleRate: CMTimeScale!
+	var numberOfSamples = 0
+	var numberOfChannels = 1
+	var sampleRate: CMTimeScale = 1
+	var cmDuration = CMTime()
+	var duration: TimeInterval { TimeInterval(CMTimeGetSeconds(cmDuration)) }
 
 	public struct Samples {
 		public let max: Float
 		public let samples: [Float]
 	}
 	
-	public init(url: URL, andLoadSampleCount: Int? = 2000) {
+	public init(url: URL, andLoadSampleCount: Int? = 2000, range: ClosedRange<TimeInterval>? = nil) {
 		self.url = url
 
 		self.setup() { error in
@@ -44,20 +47,42 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 				self.state = .idle
 			} else if let sampleCount = andLoadSampleCount {
 				self.state = .loaded
-				self.read(downscaleTo: sampleCount)
+				if let range = range {
+					self.read(in: range, downscaleTo: sampleCount)
+				} else {
+					self.read(downscaleTo: sampleCount)
+				}
 			} else {
-				self.loadError = AudioAnalysisError.failedToSetupTrack
-				self.state = .idle
+				self.state = .loaded
 			}
 		}
 	}
-	
+
 	@discardableResult
-	public func read(in requestedRange: CountableRange<Int>? = nil, downscaleTo targetSamples: Int) -> Samples? {
-		if self.state != .loaded { return nil }
-		let range = requestedRange ?? 0..<numberOfSamples
+	public func read(in requestedRange: ClosedRange<TimeInterval>, downscaleTo targetSamples: Int) -> Samples? {
+		let start = min(1, requestedRange.lowerBound / duration)
+		let end = min(1, requestedRange.upperBound / duration)
+		let sampleRange = Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
+		
+		return read(in: sampleRange, downscaleTo: targetSamples)
+	}
+
+	@discardableResult
+	public func read(in requestedRange: ClosedRange<CMTime>, downscaleTo targetSamples: Int) -> Samples? {
+		let start = requestedRange.lowerBound.percentage(of: cmDuration)
+		let end = requestedRange.upperBound.percentage(of: cmDuration)
+		let sampleRange = Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
+		
+		return read(in: sampleRange, downscaleTo: targetSamples)
+	}
+
+	@discardableResult
+	public func read(in requestedRange: ClosedRange<Int>? = nil, downscaleTo targetSamples: Int) -> Samples? {
+		if self.state < .loaded { return nil }
+		let range = requestedRange ?? 0...numberOfSamples
 		let start = CMTime(value: Int64(range.lowerBound), timescale: sampleRate)
 		let duration = CMTime(value: Int64(range.count), timescale: sampleRate)
+		let requestedSamples = range.upperBound - range.lowerBound
 		
 		reader.timeRange = CMTimeRange(start: start, duration: duration)
 		let outputSettings: [String : Any] = [
@@ -73,12 +98,12 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		reader.add(readerOutput)
 
 		var sampleMax: Float = 0
-		let samplesPerPixel = max(1, numberOfSamplesInTrack / targetSamples)
+		let samplesPerPixel = max(1, requestedSamples / targetSamples)
 		let filter = [Float](repeating: 1.0 / Float(samplesPerPixel), count: samplesPerPixel)
 
 		var outputSamples: [Float] = []
 		var sampleBuffer = Data()
-		let totalSamples = numberOfSamplesInTrack//sampleBuffer.count / MemoryLayout<Int16>.size
+		let totalSamples = requestedSamples//sampleBuffer.count / MemoryLayout<Int16>.size
 
 		reader.startReading()
 		defer { reader.cancelReading() }
@@ -150,25 +175,6 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		return downSampledData
 	}
 
-	private var numberOfSamplesInTrack: Int {
-		 var totalSamples = 0
-
-		 autoreleasepool {
-			  let descriptions = track.formatDescriptions as! [CMFormatDescription]
-			  descriptions.forEach { formatDescription in
-					guard let basicDescription = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription) else { return }
-					let channelCount = Int(basicDescription.pointee.mChannelsPerFrame)
-					let sampleRate = basicDescription.pointee.mSampleRate
-					let duration = Double(reader.asset.duration.value)
-					let timescale = Double(reader.asset.duration.timescale)
-					let totalDuration = duration / timescale
-					totalSamples = Int(sampleRate * totalDuration) * channelCount
-			  }
-		 }
-
-		 return totalSamples
-	}
-
 	func setup(completion: @escaping (Error?) -> Void) {
 		let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: NSNumber(value: true as Bool)])
 		guard let track = asset.tracks(withMediaType: .audio).first else {
@@ -177,6 +183,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			return
 		}
 		
+		cmDuration = asset.duration
 		track.loadValuesAsynchronously(forKeys: ["duration"]) {
 			guard
 				let formatDescriptions = track.formatDescriptions as? [CMAudioFormatDescription],
@@ -189,11 +196,11 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			
 			do {
 				self.reader = try AVAssetReader(asset: asset)
-				self.numberOfSamples = Int((formatDescription.pointee.mSampleRate) * Float64(asset.duration.value) / Float64(asset.duration.timescale))
 				self.track = track
 				self.numberOfChannels = Int(formatDescription.pointee.mChannelsPerFrame)
 				self.sampleRate = CMTimeScale(formatDescription.pointee.mSampleRate)
-				
+				self.numberOfSamples = Int((formatDescription.pointee.mSampleRate) * Float64(asset.duration.value) / Float64(asset.duration.timescale)) * self.numberOfChannels
+
 				self.state = .loaded
 				completion(nil)
 			} catch {
@@ -201,8 +208,13 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 				completion(AudioAnalysisError.failedToLoadTrack)
 			}
 		}
-		
 	}
-
 }
 
+extension CMTime {
+	func percentage(of time: CMTime) -> Double {
+		if time.timescale == timescale { return Double(value) / Double(time.value) }
+		
+		return (Double(value) * Double(timescale)) / (Double(time.value) * Double(time.timescale))
+	}
+}
