@@ -16,6 +16,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 
 	public var allowRecording = false { didSet { self.updateSession() }}
 	public var state: PlayerState { self.channels.values.reduce([]) { $0.union($1.state) }}
+	public var finishedPlayingPublisher = PassthroughSubject<AudioTrack, Never>()
 	
 	init() {
 		self.updateSession()
@@ -93,6 +94,10 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		if let comp = completion {
 			DispatchQueue.main.asyncAfter(deadline: .now() + segue.duration, execute: comp)
 		}
+	}
+	
+	func finishedPlaying(_ track: AudioTrack) {
+		finishedPlayingPublisher.send(track)
 	}
 
 }

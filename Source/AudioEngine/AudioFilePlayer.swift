@@ -221,10 +221,10 @@ class AudioFilePlayer: NSObject, ObservableObject {
 
 extension AudioFilePlayer {
 	func didFinishPlaying() {
-		log("Finished playing \(track!)")
 		self.state = []
 		self.endedAt = Date()
 		AudioMixer.instance.objectWillChange.send()
+		if let track = self.track { AudioMixer.instance.finishedPlaying(track) }
 	}
 	
 	func didBeginFadeOut(_ duration: TimeInterval) {
