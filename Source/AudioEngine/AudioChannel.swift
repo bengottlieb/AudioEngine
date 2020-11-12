@@ -26,6 +26,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	var totalPauseTime: TimeInterval = 0
 	var startedAt: Date?
 	var willTransitionAt: Date?
+	public var isPaused: Bool { !players.filter({ $0.isPaused }).isEmpty }
 
 	public var canPlay: Bool { self.queue.isEmpty == false }
 	public var currentlyPlaying: Set<AudioTrack> {
@@ -58,7 +59,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.name = name
 	}
 	
-	public func play(transition: AudioTrack.Transition, completion: (() -> Void)? = nil) throws {
+	public func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		if let current = self.currentPlayer {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
 			if !current.state.contains(.outroing) {

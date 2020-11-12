@@ -33,11 +33,12 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var duckMuteFactor: Float = 0.5
 	public var activeTracks: [AudioTrack] { self.channels.values.reduce([]) { $0 + $1.activeTracks } }
 	public var activePlayers: [AudioPlayer] { self.channels.values.reduce([]) { $0 + $1.activePlayers } }
-	
+	public var isPaused: Bool { !self.activePlayers.filter({ $0.isPaused }).isEmpty }
+
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
-	public func play(transition: AudioTrack.Transition, completion: (() -> Void)? = nil) throws {
+	public func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		channels.values.forEach { try? $0.play(transition: transition) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}
@@ -48,7 +49,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		DispatchQueue.main.asyncAfter(deadline: .now() + actualFade.duration) { completion?() }
 	}
 	
-	public func pause(outro: AudioTrack.Segue?, completion: (() -> Void)? = nil) {
+	public func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
 		channels.values.forEach { $0.pause(outro: outro) }
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + (outro?.duration ?? 0)) { comp() } }
 	}

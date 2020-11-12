@@ -18,6 +18,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	var muteFactor: Float = 0.0
 	weak var channel: AudioChannel?
 	
+	public var isPaused: Bool { pausedAt != nil }
 	var endTimerFireDate: Date?
 	weak var fadeInTimer: Timer?
 	weak var fadeOutTimer: Timer?
@@ -49,7 +50,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 		self.requestedVolume * (1.0 - self.muteFactor)
 	}
 	
-	func play(transition: AudioTrack.Transition, completion: (() -> Void)? = nil) throws {
+	func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		guard let track = self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
