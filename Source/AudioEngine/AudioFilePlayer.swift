@@ -147,24 +147,25 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	}
 	
 	func reset() {
-		self.pause(outro: .abrupt)
-		self.state = []
-		self.player?.stop()
-		self.startedAt = nil
-		self.endedAt = nil
-		self.pausedAt = nil
-		self.fadeOutTimer?.invalidate()
-		self.endTimer?.invalidate()
+		pause(outro: .abrupt)
+		didFinishPlaying()
+		state = []
+		player?.stop()
+		startedAt = nil
+		endedAt = nil
+		pausedAt = nil
+		fadeOutTimer?.invalidate()
+		endTimer?.invalidate()
 	}
 	
 	@discardableResult
 	func preload() throws -> Self {
-		guard self.player == nil, let track = self.track, !track.isSilence else { return self }
+		guard player == nil, let track = track, !track.isSilence else { return self }
 
-		let player = try AVAudioPlayer(contentsOf: track.url)
-		self.player = player
-		player.prepareToPlay()
-		if track.duration > player.duration * 1.1 { player.numberOfLoops = -1 }
+		let newPlayer = try AVAudioPlayer(contentsOf: track.url)
+		player = newPlayer
+		newPlayer.prepareToPlay()
+		if track.duration > newPlayer.duration * 1.1 { newPlayer.numberOfLoops = -1 }
 		log(.break, .verbose)
 		log("ready to play \(track)", .verbose)
 		return self
