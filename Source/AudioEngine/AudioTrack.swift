@@ -25,6 +25,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public var isSilence: Bool { self.url == Self.silenceURL }
 	
 	public func hash(into hasher: inout Hasher) { self.id.hash(into: &hasher) }
+	public lazy var audioAnalysis = AudioAnalysis(url: url)
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
 	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, intro: Segue? = nil, outro: Segue? = nil) {

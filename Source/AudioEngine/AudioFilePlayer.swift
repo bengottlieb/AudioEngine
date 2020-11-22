@@ -16,6 +16,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	var endedAt: Date?
 	var pausedAt: Date?
 	var muteFactor: Float = 0.0
+	var hasSentFinished = true
 	weak var channel: AudioChannel?
 	
 	public var isPaused: Bool { pausedAt != nil }
@@ -51,6 +52,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	}
 	
 	func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+		hasSentFinished = false
 		guard let track = self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
@@ -223,15 +225,16 @@ class AudioFilePlayer: NSObject, ObservableObject {
 
 extension AudioFilePlayer {
 	func didFinishPlaying() {
-		self.state = []
-		self.endedAt = Date()
+		if !hasSentFinished, let track = self.track { AudioMixer.instance.finishedPlaying(track) }
+		state = []
+		hasSentFinished = true
+		endedAt = Date()
 		AudioMixer.instance.objectWillChange.send()
-		if let track = self.track { AudioMixer.instance.finishedPlaying(track) }
 	}
 	
 	func didBeginFadeOut(_ duration: TimeInterval) {
-		self.state.formUnion(.outroing)
-		let segue = self.outro ?? self.track?.outro ?? self.channel?.defaultChannelFadeOut ?? .default
+		state.formUnion(.outroing)
+		let segue = outro ?? track?.outro ?? channel?.defaultChannelFadeOut ?? .default
 		apply(outro: segue, to: 0)
 	}
 }

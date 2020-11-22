@@ -12,14 +12,13 @@ import Accelerate
 
 public class AudioAnalysis: ObservableObject, Identifiable {
 	public enum AudioAnalysisError: Error { case failedToCreateBuffer, failedToReadBuffer, noAudioTrackFound, invalidAudioTrack, unableToConstructAsset, failedToCreateTrack, failedToLoadTrack, failedToSetupTrack }
-	public enum State: Int, Comparable { case idle, failedToLoad, loading, loaded, sampled
+	public enum State: Int, Comparable { case idle, failedToLoad, loading, loaded, sampling, sampled
 		public static func <(lhs: State, rhs: State) -> Bool { lhs.rawValue < rhs.rawValue }
 	}
 	
 	public let url: URL
 	@Published public var state = State.idle
-	@Published public var samples: [Float] = []
-	@Published public var maxSample: Float = 0
+	@Published public var samples: Samples?
 	@Published public var loadError: Error?
 	public var id: URL { url }
 	
@@ -78,7 +77,18 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 
 	@discardableResult
 	public func read(in requestedRange: ClosedRange<Int>? = nil, downscaleTo targetSamples: Int) -> Samples? {
-		if self.state < .loaded { return nil }
+		if self.duration.isZero || self.duration.isNaN {
+			self.state = .failedToLoad
+			return nil
+		}
+		
+		switch state {
+		case .idle, .failedToLoad, .loading, .sampling: return nil
+		case .sampled: return samples
+		case .loaded: break
+		}
+
+		self.state = .sampling
 		let range = requestedRange ?? 0...numberOfSamples
 		let start = CMTime(value: Int64(range.lowerBound), timescale: sampleRate)
 		let duration = CMTime(value: Int64(range.count), timescale: sampleRate)
@@ -136,9 +146,12 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			outputSamples += chunk
 		}
 		
-		self.samples = outputSamples.map { $0 / silenceDbThreshold }
-		self.maxSample = samples.max() ?? 0
-		return Samples(max: maxSample, samples: samples)
+		let samples = outputSamples.map { $0 / silenceDbThreshold }
+		let maxSample = samples.max() ?? 0
+		self.samples = Samples(max: maxSample, samples: samples)
+		
+		self.state = .sampled
+		return self.samples
 	}
 	
 	private var silenceDbThreshold: Float { return -50.0 } // everything below -50 dB will be clipped
