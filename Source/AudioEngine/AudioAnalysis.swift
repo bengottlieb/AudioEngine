@@ -8,7 +8,7 @@
 import Foundation
 import AVFoundation
 import Accelerate
-
+import Combine
 
 public class AudioAnalysis: ObservableObject, Identifiable {
 	public enum AudioAnalysisError: Error { case failedToCreateBuffer, failedToReadBuffer, noAudioTrackFound, invalidAudioTrack, unableToConstructAsset, failedToCreateTrack, failedToLoadTrack, failedToSetupTrack }
@@ -31,11 +31,47 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 	var sampleRate: CMTimeScale = 1
 	var cmDuration = CMTime()
 	var duration: TimeInterval { TimeInterval(CMTimeGetSeconds(cmDuration)) }
+	var samplePublishers: [RangeAndScale: CurrentValueSubject<Samples, Error>] = [:]
+	lazy var dispatchQueue = DispatchQueue(label: url.absoluteString, qos: .userInitiated)
 
 	public struct Samples {
 		public let max: Float
 		public let samples: [Float]
+		
+		static let empty = Samples(max: 0, samples: [])
 	}
+	
+	struct RangeAndScale: Hashable {
+		let range: ClosedRange<Int>
+		let scale: Int
+		func hash(into hasher: inout Hasher) {
+			hasher.combine(range)
+			hasher.combine(scale)
+		}
+	}
+
+	public func samples(for range: ClosedRange<CMTime>, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> { samples(for: convert(range: range), downscaleTo: scale) }
+	public func samples(for range: ClosedRange<TimeInterval>, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> { samples(for: convert(range: range), downscaleTo: scale) }
+
+	public func samples(for range: ClosedRange<Int>? = nil, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> {
+		let fetchRange = range ?? self.fullRange
+		let rangeAndScale = RangeAndScale(range: fetchRange, scale: scale)
+		if let existing = samplePublishers[rangeAndScale] { return existing }
+		
+		let pub = CurrentValueSubject<Samples, Error>(Samples.empty)
+		samplePublishers[rangeAndScale] = pub
+		
+		dispatchQueue.async {
+			if let result = self.read(in: fetchRange, downscaleTo: scale) {
+				pub.value = result
+			}
+			
+		}
+		
+		return pub
+	}
+	
+	var fullRange: ClosedRange<Int> { 0...numberOfSamples }
 	
 	public init(url: URL, andLoadSampleCount: Int? = 2000, range: ClosedRange<TimeInterval>? = nil) {
 		self.url = url
@@ -47,9 +83,9 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			} else if let sampleCount = andLoadSampleCount {
 				self.state = .loaded
 				if let range = range {
-					self.read(in: range, downscaleTo: sampleCount)
+					_ = self.samples(for: range, downscaleTo: sampleCount)
 				} else {
-					self.read(downscaleTo: sampleCount)
+					_ = self.samples(downscaleTo: sampleCount)
 				}
 			} else {
 				self.state = .loaded
@@ -57,26 +93,11 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		}
 	}
 
-	@discardableResult
-	public func read(in requestedRange: ClosedRange<TimeInterval>, downscaleTo targetSamples: Int) -> Samples? {
-		let start = min(1, requestedRange.lowerBound / duration)
-		let end = min(1, requestedRange.upperBound / duration)
-		let sampleRange = Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
-		
-		return read(in: sampleRange, downscaleTo: targetSamples)
-	}
+	func read(in requested: ClosedRange<TimeInterval>, downscaleTo targetSamples: Int) -> Samples? { return read(in: convert(range: requested), downscaleTo: targetSamples) }
+	func read(in requested: ClosedRange<CMTime>, downscaleTo targetSamples: Int) -> Samples? { return read(in: convert(range: requested), downscaleTo: targetSamples) }
 
 	@discardableResult
-	public func read(in requestedRange: ClosedRange<CMTime>, downscaleTo targetSamples: Int) -> Samples? {
-		let start = requestedRange.lowerBound.percentage(of: cmDuration)
-		let end = requestedRange.upperBound.percentage(of: cmDuration)
-		let sampleRange = Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
-		
-		return read(in: sampleRange, downscaleTo: targetSamples)
-	}
-
-	@discardableResult
-	public func read(in requestedRange: ClosedRange<Int>? = nil, downscaleTo targetSamples: Int) -> Samples? {
+	func read(in requestedRange: ClosedRange<Int>? = nil, downscaleTo targetSamples: Int) -> Samples? {
 		if self.duration.isZero || self.duration.isNaN {
 			self.state = .failedToLoad
 			return nil
@@ -197,7 +218,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		}
 		
 		cmDuration = asset.duration
-		track.loadValuesAsynchronously(forKeys: ["duration"]) {
+//		track.loadValuesAsynchronously(forKeys: ["duration"]) {
 			guard
 				let formatDescriptions = track.formatDescriptions as? [CMAudioFormatDescription],
 				let audioFormatDesc = formatDescriptions.first,
@@ -220,7 +241,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 				self.state = .failedToLoad
 				completion(AudioAnalysisError.failedToLoadTrack)
 			}
-		}
+//		}
 	}
 }
 
@@ -229,5 +250,19 @@ extension CMTime {
 		if time.timescale == timescale { return Double(value) / Double(time.value) }
 		
 		return (Double(value) * Double(timescale)) / (Double(time.value) * Double(time.timescale))
+	}
+}
+
+extension AudioAnalysis {
+	func convert(range: ClosedRange<TimeInterval>) -> ClosedRange<Int> {
+		let start = min(1, range.lowerBound / duration)
+		let end = min(1, range.upperBound / duration)
+		return Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
+	}
+
+	func convert(range: ClosedRange<CMTime>) -> ClosedRange<Int> {
+		let start = range.lowerBound.percentage(of: cmDuration)
+		let end = range.upperBound.percentage(of: cmDuration)
+		return Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
 	}
 }

@@ -40,7 +40,6 @@ public struct Waveform: Shape {
 			path.move(to: CGPoint(x: xPos, y: drawingAmplitudeUp))
 			path.addLine(to: CGPoint(x: xPos, y: drawingAmplitudeDown))
 		}
-		print(rect)
 		
 		return path
 	}
