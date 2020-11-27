@@ -82,11 +82,16 @@ public protocol AudioPlayer: class, AudioReporting {
 
 	func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 	func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
+	
+	var progressPublisher: AnyPublisher<TimeInterval, Never> { get }
+	var duration: TimeInterval? { get }
 }
 
 public protocol AudioSource: AudioPlayer {
+	var id: String { get }
 	var track: AudioTrack? { get }
 	func load(track: AudioTrack, into channel: AudioChannel) throws -> Self
+	var audioAnalysis: AudioAnalysis? { get }
 }
 
 extension Array: AudioReporting where Element: AudioReporting {

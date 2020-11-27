@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-class AudioFilePlayer: NSObject, ObservableObject {
+class AudioFilePlayer: NSObject, ObservableObject, URLLocatable {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var requestedVolume: Float = 0.0
@@ -18,6 +18,8 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	var muteFactor: Float = 0.0
 	var hasSentFinished = true
 	weak var channel: AudioChannel?
+	var id: String { track?.id ?? UUID().uuidString }
+	var url: URL { track?.url ?? .blank }
 	
 	public var isPaused: Bool { pausedAt != nil }
 	var endTimerFireDate: Date?
@@ -27,6 +29,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	weak var volumeFadeTimer: Timer?
 	weak var pauseTimer: Timer?
 	private var timers: [Timer] { [fadeInTimer, fadeOutTimer, endTimer, volumeFadeTimer, pauseTimer].compactMap { $0 }}
+	public lazy var audioAnalysis: AudioAnalysis? = AudioAnalysis(url: track?.url ?? URL(fileURLWithPath: "/"))
 
 	public var state: PlayerState = [] { didSet {
 		guard state != oldValue, let track = self.track else { return }
@@ -38,6 +41,9 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	deinit {
 		self.reset()
 	}
+	
+	var currentTimeValue = CurrentValueSubject<TimeInterval, Never>(0)
+	lazy var progressPublisher: AnyPublisher<TimeInterval, Never> = currentTimeValue.eraseToAnyPublisher()
 	
 	@discardableResult
 	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
@@ -61,7 +67,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 			if transition.duration > 0 {
 				self.player?.volume = 0.0
 				self.state = [.introing, .playing]
-				self.player?.play()
+				startPlayer()
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: transition.intro.duration)
 				DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) {
 					self.state.remove(.introing)
@@ -70,7 +76,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 			} else {
 				self.player?.setVolume(self.effectiveVolume, fadeDuration: 0)
 				self.state = .playing
-				self.player?.play()
+				startPlayer()
 				completion?()
 			}
 			if let fireAt = endTimerFireDate { self.setupEndTimer(duration: abs(fireAt.addingTimeInterval(delta).timeIntervalSinceNow), outroAt: track.outro?.duration) }
@@ -132,11 +138,11 @@ class AudioFilePlayer: NSObject, ObservableObject {
 			self.player?.setVolume(0.0, fadeDuration: outroDuration)
 			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: outroDuration, repeats: false) { _ in
 				self.state.remove([.playing, .introing, .outroing])
-				self.player?.pause()
+				self.stopPlayer()
 			}
 		} else {
 			self.state.remove([.playing, .introing, .outroing])
-			self.player?.pause()
+			self.stopPlayer()
 			self.player?.volume = 0.0
 		}
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + outroDuration) { comp() } }
@@ -152,7 +158,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 		pause(outro: .abrupt)
 		didFinishPlaying()
 		state = []
-		player?.stop()
+		stopPlayer()
 		startedAt = nil
 		endedAt = nil
 		pausedAt = nil
@@ -184,7 +190,7 @@ class AudioFilePlayer: NSObject, ObservableObject {
 			log("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
 			self.player?.volume = self.effectiveVolume
 			self.requestedVolume = volume
-			self.player?.play()
+			startPlayer()
 			self.fadePlayer(from: player.volume, to: self.effectiveVolume, over: duration)
 			self.fadeInTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
 				self.state.remove([.introing, .outroing])
@@ -216,10 +222,24 @@ class AudioFilePlayer: NSObject, ObservableObject {
 	}
 	
 	func play(at volume: Float) {
+		if !self.state.contains(.playing) { self.state.insert(.playing) }
 		self.player?.volume = 0
-		self.player?.play()
+		startPlayer()
 		self.requestedVolume = volume
 		self.player?.volume = self.effectiveVolume
+	}
+	
+	weak var positionTimer: Timer?
+	func startPlayer() {
+		self.player?.play()
+		self.positionTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true, block: { _ in
+			self.currentTimeValue.value = self.player?.currentTime ?? 0
+		})
+	}
+	
+	func stopPlayer() {
+		self.player?.pause()
+		self.positionTimer?.invalidate()
 	}
 }
 
@@ -237,6 +257,8 @@ extension AudioFilePlayer {
 		let segue = outro ?? track?.outro ?? channel?.defaultChannelFadeOut ?? .default
 		apply(outro: segue, to: 0)
 	}
+	
+	public var duration: TimeInterval? { return player?.duration ?? 0 }
 }
 
 extension AudioFilePlayer: AudioSource {

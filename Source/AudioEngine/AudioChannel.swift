@@ -21,6 +21,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	public var shouldCrossFade = true
 	
 	public static var mainChannelName = "Main"
+	public static var main: AudioChannel { channel(named: mainChannelName) }
 	public var state: PlayerState { self.players.reduce([]) { $0.union($1.state) }}
 
 	var totalPauseTime: TimeInterval = 0
@@ -38,7 +39,9 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 
 	public var currentTrackIndex: Int?
 	private var pendingTrackIndex: Int?
-	
+	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
+	public var duration: TimeInterval? { players.compactMap({ $0.duration }).sum() }
+
 	//private var availablePlayers: Set<Player> = []
 	private var currentPlayer: AudioSource? { didSet { self.currentTrack = currentPlayer?.track }}
 	private var fadingOutPlayer: AudioSource?

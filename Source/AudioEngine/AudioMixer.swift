@@ -38,6 +38,9 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public private(set) var channels: [String: AudioChannel] = [:]
 	public var playingChannels: [AudioChannel] { Array(self.channels.values.filter( { $0.isPlaying }))}
 	
+	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
+	public var duration: TimeInterval? { channels.values.compactMap({ $0.duration }).max() }
+
 	public func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		channels.values.forEach { try? $0.play(transition: transition) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }

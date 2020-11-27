@@ -37,8 +37,9 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 	public struct Samples {
 		public let max: Float
 		public let samples: [Float]
+		public let duration: TimeInterval
 		
-		static let empty = Samples(max: 0, samples: [])
+		static let empty = Samples(max: 0, samples: [], duration: 0)
 	}
 	
 	struct RangeAndScale: Hashable {
@@ -50,10 +51,10 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		}
 	}
 
-	public func samples(for range: ClosedRange<CMTime>, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> { samples(for: convert(range: range), downscaleTo: scale) }
-	public func samples(for range: ClosedRange<TimeInterval>, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> { samples(for: convert(range: range), downscaleTo: scale) }
+	public func samples(time range: ClosedRange<CMTime>, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> { samples(samples: convert(range: range), downscaleTo: scale) }
+	public func samples(time range: ClosedRange<TimeInterval>?, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> { samples(samples: convert(range: range), downscaleTo: scale) }
 
-	public func samples(for range: ClosedRange<Int>? = nil, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> {
+	public func samples(samples range: ClosedRange<Int>? = nil, downscaleTo scale: Int) -> CurrentValueSubject<Samples, Error> {
 		let fetchRange = range ?? self.fullRange
 		let rangeAndScale = RangeAndScale(range: fetchRange, scale: scale)
 		if let existing = samplePublishers[rangeAndScale] { return existing }
@@ -73,7 +74,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 	
 	var fullRange: ClosedRange<Int> { 0...numberOfSamples }
 	
-	public init(url: URL, andLoadSampleCount: Int? = 2000, range: ClosedRange<TimeInterval>? = nil) {
+	public init(url: URL, andLoadSampleCount: Int? = nil, range: ClosedRange<TimeInterval>? = nil) {
 		self.url = url
 
 		self.setup() { error in
@@ -83,7 +84,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			} else if let sampleCount = andLoadSampleCount {
 				self.state = .loaded
 				if let range = range {
-					_ = self.samples(for: range, downscaleTo: sampleCount)
+					_ = self.samples(time: range, downscaleTo: sampleCount)
 				} else {
 					_ = self.samples(downscaleTo: sampleCount)
 				}
@@ -112,7 +113,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		self.state = .sampling
 		let range = requestedRange ?? 0...numberOfSamples
 		let start = CMTime(value: Int64(range.lowerBound), timescale: sampleRate)
-		let duration = CMTime(value: Int64(range.count), timescale: sampleRate)
+		let duration = CMTime(value: Int64(range.upperBound), timescale: sampleRate)
 		let requestedSamples = range.upperBound - range.lowerBound
 		
 		reader.timeRange = CMTimeRange(start: start, duration: duration)
@@ -169,7 +170,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		
 		let samples = outputSamples.map { $0 / silenceDbThreshold }
 		let maxSample = samples.max() ?? 0
-		self.samples = Samples(max: maxSample, samples: samples)
+		self.samples = Samples(max: maxSample, samples: samples, duration: TimeInterval(CMTimeGetSeconds(duration)))
 		
 		self.state = .sampled
 		return self.samples
@@ -254,7 +255,10 @@ extension CMTime {
 }
 
 extension AudioAnalysis {
-	func convert(range: ClosedRange<TimeInterval>) -> ClosedRange<Int> {
+	func convert(range: ClosedRange<TimeInterval>?) -> ClosedRange<Int> {
+		guard let range = range else {
+			return 0...numberOfSamples
+		}
 		let start = min(1, range.lowerBound / duration)
 		let end = min(1, range.upperBound / duration)
 		return Int(Double(numberOfSamples / numberOfChannels) * start)...Int(Double(numberOfSamples / numberOfChannels) * end)
