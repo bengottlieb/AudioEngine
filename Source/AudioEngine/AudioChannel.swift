@@ -107,6 +107,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		}
 		let duration = self.duration(of: outro)
 		self.pausedAt = Date(timeIntervalSinceNow: duration)
+		print(self.players.map { $0.track?.name })
 		self.players.forEach { $0.pause(outro: outro, completion: nil) }
 		self.transitionTimer?.invalidate()
 		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
@@ -148,11 +149,19 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	public var timeElapsed: TimeInterval {
-		self.players.reduce(0) { max($0, $1.timeElapsed) }
+		let nonOutroing = nonOutroingPlayers
+		if !nonOutroing.isEmpty { return nonOutroing.reduce(0) { Swift.max($0, $1.timeElapsed) } }
+		
+		guard let recent = self.players.first else { return 0 }
+		return recent.timeElapsed
 	}
 	
 	public var timeRemaining: TimeInterval {
-		self.players.reduce(0) { max($0, $1.timeRemaining) }
+		let nonOutroing = nonOutroingPlayers
+		if !nonOutroing.isEmpty { return nonOutroing.reduce(0) { Swift.max($0, $1.timeRemaining) } }
+		
+		guard let recent = self.players.first else { return 0 }
+		return recent.timeRemaining
 	}
 	
 	public func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
