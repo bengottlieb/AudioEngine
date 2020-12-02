@@ -113,7 +113,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		self.state = .sampling
 		let range = requestedRange ?? 0...numberOfSamples
 		let start = CMTime(value: Int64(range.lowerBound), timescale: sampleRate)
-		let duration = CMTime(value: Int64(range.upperBound), timescale: sampleRate)
+		let duration = CMTime(value: Int64(range.upperBound) / Int64(numberOfChannels), timescale: sampleRate)
 		let requestedSamples = range.upperBound - range.lowerBound
 		
 		reader.timeRange = CMTimeRange(start: start, duration: duration)
