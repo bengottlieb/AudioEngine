@@ -11,20 +11,17 @@ public struct Waveform: Shape {
 	public let samples: [Double]
 	public let maxSample: Double
 	public var invertSamples = true
-	var silenceBaseline = 0.0
 	
-	public init(samples: [Double], max: Double, invert: Bool = true, silence: Double = 0.0) {
+	public init(samples: [Double], max: Double, invert: Bool = true) {
 		self.samples = samples
 		maxSample = max
 		invertSamples = invert
-		silenceBaseline = silence
 	}
 	
-	public init(samples: [Float], max: Float, invert: Bool = true, silence: Double = 0.0) {
+	public init(samples: [Float], max: Float, invert: Bool = true) {
 		self.samples = samples.map { Double($0) }
 		maxSample = Double(max)
 		invertSamples = invert
-		silenceBaseline = silence
 	}
 	
 	public func path(in rect: CGRect) -> Path {
@@ -36,7 +33,7 @@ public struct Waveform: Shape {
 		let positionAdjustedGraphCenter = rect.size.height / 2
 		
 		for (x, sample) in samples.enumerated() {
-			let amplitude = (sample - silenceBaseline) / (maxSample - silenceBaseline)
+			let amplitude = sample / maxSample
 			let xPos = CGFloat(x) * scale
 			let polarized = min(1, invertSamples ? 1 - CGFloat(amplitude) : CGFloat(amplitude))
 			let invertedDbSample = pow(polarized, 2) // sample is in dB, linearly normalized to [0, 1] (1 -> -50 dB)
