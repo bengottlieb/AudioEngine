@@ -42,7 +42,7 @@ public struct AudioTrackView: View {
 				} else if let samples = samples {
 					ProgressRectangle(progress: progress)
 						.fill(Color.red)
-					Waveform(samples: samples.samples, maxSample: samples.max)
+					Waveform(samples: samples.samples, max: samples.max)
 						.stroke(lineWidth: 0.5)
 				} else {
 					ActivityIndicatorView()
@@ -50,7 +50,12 @@ public struct AudioTrackView: View {
 			}
 			.onAppear {
 				self.samplePublisher = source.audioAnalysis?.samples(time: range, downscaleTo: Int(proxy.size.width))
-					.sink(receiveCompletion: { result in }) { samples in
+					.sink(receiveCompletion: { result in
+						switch result {
+						case .finished: break
+						case .failure(let err): self.errorReport = err.localizedDescription
+						}
+					}) { samples in
 						self.samples = samples
 					}
 			}

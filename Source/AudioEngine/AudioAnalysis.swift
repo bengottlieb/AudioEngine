@@ -11,7 +11,10 @@ import Accelerate
 import Combine
 
 public class AudioAnalysis: ObservableObject, Identifiable {
-	public enum AudioAnalysisError: Error { case failedToCreateBuffer, failedToReadBuffer, noAudioTrackFound, invalidAudioTrack, unableToConstructAsset, failedToCreateTrack, failedToLoadTrack, failedToSetupTrack }
+	public enum AudioAnalysisError: String, LocalizedError { case failedToCreateBuffer, failedToReadBuffer, noAudioTrackFound, invalidAudioTrack, unableToConstructAsset, failedToCreateTrack, failedToLoadTrack, failedToSetupTrack, fileTooLarge
+		
+		public var errorDescription: String? { rawValue }
+	}
 	public enum State: Int, Comparable { case idle, failedToLoad, loading, loaded, sampling, sampled
 		public static func <(lhs: State, rhs: State) -> Bool { lhs.rawValue < rhs.rawValue }
 	}
@@ -63,10 +66,14 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		samplePublishers[rangeAndScale] = pub
 		
 		dispatchQueue.async {
-			if let result = self.read(in: fetchRange, downscaleTo: scale) {
-				pub.value = result
+			do {
+				if let result = try self.read(in: fetchRange, downscaleTo: scale) {
+					pub.value = result
+				}
+			} catch {
+				self.loadError = error
+				pub.send(completion: Subscribers.Completion.failure(error))
 			}
-			
 		}
 		
 		return pub
@@ -94,11 +101,11 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		}
 	}
 
-	func read(in requested: ClosedRange<TimeInterval>, downscaleTo targetSamples: Int) -> Samples? { return read(in: convert(range: requested), downscaleTo: targetSamples) }
-	func read(in requested: ClosedRange<CMTime>, downscaleTo targetSamples: Int) -> Samples? { return read(in: convert(range: requested), downscaleTo: targetSamples) }
+	func read(in requested: ClosedRange<TimeInterval>, downscaleTo targetSamples: Int) throws -> Samples? { try read(in: convert(range: requested), downscaleTo: targetSamples) }
+	func read(in requested: ClosedRange<CMTime>, downscaleTo targetSamples: Int) throws -> Samples? { try read(in: convert(range: requested), downscaleTo: targetSamples) }
 
 	@discardableResult
-	func read(in requestedRange: ClosedRange<Int>? = nil, downscaleTo targetSamples: Int) -> Samples? {
+	func read(in requestedRange: ClosedRange<Int>? = nil, downscaleTo targetSamples: Int) throws -> Samples? {
 		if self.duration.isZero || self.duration.isNaN {
 			self.state = .failedToLoad
 			return nil
@@ -154,9 +161,12 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			
 			guard samplesToProcess > 0 else { continue }
 			let processed = self.processSamples(from: &sampleBuffer, sampleMax: &sampleMax, samplesToProcess: samplesToProcess, downSampledLength: downSampledLength, samplesPerPixel: samplesPerPixel, filter: filter)
+			
 			outputSamples += processed
 			if processed.count > 0 {
 				sampleBuffer.removeFirst(processed.count * samplesPerPixel * MemoryLayout<Int16>.size)
+			} else {
+				throw AudioAnalysisError.fileTooLarge
 			}
 		}
 		

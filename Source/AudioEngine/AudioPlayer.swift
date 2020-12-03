@@ -87,6 +87,10 @@ public protocol AudioPlayer: class, AudioReporting {
 	var duration: TimeInterval? { get }
 }
 
+public protocol ObservablePlayer: AudioPlayer, ObservableObject {
+	
+}
+
 public protocol AudioSource: AudioPlayer {
 	var id: String { get }
 	var track: AudioTrack? { get }

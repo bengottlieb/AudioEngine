@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Suite
 
-class AudioFilePlayer: NSObject, ObservableObject, URLLocatable {
+class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	var track: AudioTrack?
 	var player: AVAudioPlayer?
 	var requestedVolume: Float = 0.0
@@ -32,10 +32,10 @@ class AudioFilePlayer: NSObject, ObservableObject, URLLocatable {
 	public lazy var audioAnalysis: AudioAnalysis? = AudioAnalysis(url: track?.url ?? URL(fileURLWithPath: "/"))
 
 	public var state: PlayerState = [] { didSet {
-		guard state != oldValue, let track = self.track else { return }
+		guard state != oldValue, self.track != nil else { return }
 		self.objectWillChange.send()
 		self.channel?.playStateChanged()
-		print("State for \(track.name) changed to \(state)")
+		//print("State for \(track.name) changed to \(state)")
 	}}
 
 	deinit {
@@ -268,12 +268,7 @@ extension AudioFilePlayer: AudioSource {
 	}
 	
 	var timeElapsed: TimeInterval {
-		guard let started = startedAt else { return 0 }
-		var ended = Date()
-		if let paused = pausedAt, paused < ended { ended = paused }
-		let time = abs(started.timeIntervalSince(ended))
-		
-		return time
+		player?.currentTime ?? 0
 	}
 	
 	public func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {
