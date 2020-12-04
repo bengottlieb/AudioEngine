@@ -19,6 +19,26 @@ struct ProgressRectangle: Shape {
 	}
 }
 
+public struct ScrollingAudioView: View {
+	let trackView: AudioTrackView
+	
+	@State var contentWidth: CGFloat = 2000
+	
+	public init(source: AudioSource, initialRange: ClosedRange<TimeInterval>? = nil) {
+		trackView = AudioTrackView(source: source, initialRange: initialRange)
+	}
+	
+	public var body: some View {
+		ScrollView(.horizontal) {
+			trackView
+				.frame(width: contentWidth)
+		}
+		.onPreferenceChange(AudioTrackView.AudioViewWidthKey.self) { width in
+			contentWidth = width
+		}
+	}
+}
+
 public struct AudioTrackView: View {
 	let source: AudioSource
 
@@ -28,6 +48,9 @@ public struct AudioTrackView: View {
 	@State var cancellable: AnyCancellable?
 	@State var progress = 0.0
 	@State var range: ClosedRange<TimeInterval>?
+	@State var style: Waveform.Style = .line
+	@State var idealWidth: CGFloat = 0
+	@State var spacing: CGFloat = 2
 	
 	public init(source: AudioSource, initialRange: ClosedRange<TimeInterval>? = nil) {
 		self.source = source
@@ -42,14 +65,14 @@ public struct AudioTrackView: View {
 				} else if let samples = samples {
 					ProgressRectangle(progress: progress)
 						.fill(Color.red)
-					Waveform(samples: samples.samples, max: samples.max)
+					Waveform(samples: samples.samples, max: samples.max, spacing: spacing)
 						.stroke(lineWidth: 0.5)
 				} else {
 					ActivityIndicatorView()
 				}
 			}
 			.onAppear {
-				self.samplePublisher = source.audioAnalysis?.samples(time: range, downscaleTo: Int(proxy.size.width))
+				self.samplePublisher = source.audioAnalysis?.samples(time: range, downscaleTo: Int((source.duration ?? 30) * 30)) // Int(proxy.size.width / spacing))
 					.sink(receiveCompletion: { result in
 						switch result {
 						case .finished: break
@@ -57,8 +80,10 @@ public struct AudioTrackView: View {
 						}
 					}) { samples in
 						self.samples = samples
+						self.idealWidth = Waveform.width(for: samples.samples, spacing: spacing)
 					}
 			}
+			.preference(key: AudioViewWidthKey.self, value: idealWidth)
 
 		}
 		.frame(height: 100)
@@ -75,10 +100,15 @@ public struct AudioTrackView: View {
 			}
 		}
 	}
-}
+	
+	struct AudioViewWidthKey: PreferenceKey {
+		typealias Value = CGFloat
 
-//struct SwiftUIView_Previews: PreviewProvider {
-//	static var previews: some View {
-//		SwiftUIView()
-//	}
-//}
+		static var defaultValue: CGFloat = 0
+		
+		static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+			value = max(value, nextValue())
+		}
+	}
+
+}

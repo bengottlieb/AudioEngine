@@ -11,26 +11,38 @@ public struct Waveform: Shape {
 	public let samples: [Double]
 	public let maxSample: Double
 	public var invertSamples = true
+	public var style = Style.line
+	public var minSpacing: CGFloat = Waveform.defaultSpacing
 	
-	public init(samples: [Double], max: Double, invert: Bool = true) {
+	public static func width<T>(for samples: [T], spacing: CGFloat = Waveform.defaultSpacing) -> CGFloat {
+		CGFloat(samples.count) * spacing
+	}
+
+	public enum Style { case vertical, line }
+	public static var defaultSpacing: CGFloat = 3
+	
+	public init(samples: [Double], max: Double, invert: Bool = true, spacing: CGFloat = Waveform.defaultSpacing) {
 		self.samples = samples
 		maxSample = max
 		invertSamples = invert
+		minSpacing = spacing
 	}
 	
-	public init(samples: [Float], max: Float, invert: Bool = true) {
+	public init(samples: [Float], max: Float, invert: Bool = true, spacing: CGFloat = Waveform.defaultSpacing) {
 		self.samples = samples.map { Double($0) }
 		maxSample = Double(max)
 		invertSamples = invert
+		minSpacing = spacing
 	}
 	
 	public func path(in rect: CGRect) -> Path {
 		var path = Path()
-		let scale = min(rect.width / CGFloat(samples.count), 2)
+		let scale = max(minSpacing, min(rect.width / CGFloat(samples.count), 2))
 		let minimumGraphAmplitude: CGFloat = 1 // we want to see at least a 1pt line for silence
 		
 		var maxAmplitude: CGFloat = 0.0 // we know 1 is our max in normalized data, but we keep it 'generic'
 		let positionAdjustedGraphCenter = rect.size.height / 2
+		var lastPoint: CGPoint?
 		
 		for (x, sample) in samples.enumerated() {
 			let amplitude = sample / maxSample
@@ -42,8 +54,19 @@ public struct Waveform: Shape {
 			let drawingAmplitudeDown = positionAdjustedGraphCenter + drawingAmplitude
 			maxAmplitude = max(drawingAmplitude, maxAmplitude)
 			
-			path.move(to: CGPoint(x: xPos, y: drawingAmplitudeUp))
-			path.addLine(to: CGPoint(x: xPos, y: drawingAmplitudeDown))
+			let highPoint = CGPoint(x: xPos, y: drawingAmplitudeUp)
+			if style == .vertical {
+				path.move(to: highPoint)
+				path.addLine(to: CGPoint(x: xPos, y: drawingAmplitudeDown))
+			} else {
+				if lastPoint == nil {
+					path.move(to: highPoint)
+				} else {
+					path.addLine(to: highPoint)
+				}
+				path.addLine(to: CGPoint(x: xPos + scale / 2, y: drawingAmplitudeDown))
+				lastPoint = highPoint
+			}
 		}
 		
 		return path
