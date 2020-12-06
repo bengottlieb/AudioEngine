@@ -68,6 +68,8 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			if !current.state.contains(.outroing) {
 				current.pause(outro: .abrupt, completion: nil)
 			}
+			
+			//if queue.count > 1, queue.firstIndex(of: current.track) == 0 { self.queue.dropFirst() }
 			self.fadingOutPlayer = current
 			self.pausedAt = nil
 			self.startedAt	= nil
@@ -210,23 +212,23 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	func startNextTrack() {
+		var nextIndex = 0
 		if let current = self.currentTrackIndex {
-			self.currentTrackIndex = current + 1
-		} else {
-			self.currentTrackIndex = 0
+			nextIndex = current + 1
 		}
 		
 //		fadingOutPlayer = currentPlayer
 //		currentPlayer = nil
 
-		guard let index = self.currentTrackIndex, let track = self.queue[index] else {
+		guard let track = self.queue[nextIndex] else {
 			self.ended()
 			return
 		}
 		
+		currentTrackIndex = nextIndex
 		transitionTimer?.invalidate()
 		var transitionTime = track.duration
-		if self.shouldCrossFade, let next = self.queue[index + 1] {
+		if self.shouldCrossFade, let next = self.queue[nextIndex + 1] {
 			let fadeOutDuration = track.duration(of: track.outro)
 			let nextFadeIn = next.intro ?? self.defaultChannelFadeIn
 			let fadeInDuration = next.duration(of: nextFadeIn)

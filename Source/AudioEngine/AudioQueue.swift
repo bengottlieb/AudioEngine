@@ -28,7 +28,11 @@ public struct AudioQueue {
 
 	public subscript(index: Int) -> AudioTrack? { index < tracks.count ? tracks[index] : nil }
 
-	public func firstIndex(of track: AudioTrack) -> Int? { tracks.firstIndex(of: track) }
+	public func firstIndex(of track: AudioTrack?) -> Int? { 
+		guard let track = track else { return nil }
+		return tracks.firstIndex(of: track)
+	}
+	
 	mutating public func clear() { self.tracks = [] }
 
 	public init(tracks: [AudioTrack] = [], intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil, useLoops: Bool = false) {
@@ -37,6 +41,10 @@ public struct AudioQueue {
 		tracks.forEach {
 			self.append($0, intro: intro, outro: outro)
 		}
+	}
+	
+	mutating public func dropFirst(count: Int = 1) {
+		tracks = count >= tracks.count ? [] : Array(tracks.dropFirst(count))
 	}
 	
 	mutating public func append(_ track: AudioTrack, intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil) {

@@ -11,7 +11,7 @@ public struct Waveform: Shape {
 	public let samples: [Double]
 	public let maxSample: Double
 	public var invertSamples = true
-	public var style = Style.line
+	public var style = Style.vertical
 	public var minSpacing: CGFloat = Waveform.defaultSpacing
 	
 	public static func width<T>(for samples: [T], spacing: CGFloat = Waveform.defaultSpacing) -> CGFloat {
