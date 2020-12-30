@@ -87,16 +87,16 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 					self.startNextTrack()
 				}
 			}
-			log("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
+			logg("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		} else {
 			if self.isPlayingFullOn { return }			// already playing
 		//	self.clear()
 
 			self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, intro: self.defaultChannelFadeIn, outro: self.defaultChannelFadeOut)
 			self.startedAt = Date()
-			log("starting channel \(self.name) at \(self.startedAt!)", .verbose)
+			logg("starting channel \(self.name) at \(self.startedAt!)", .verbose)
 			self.startNextTrack()
-			log("done setting up channel \(self.name)", .verbose)
+			logg("done setting up channel \(self.name)", .verbose)
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}
@@ -109,10 +109,10 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		}
 		let duration = self.duration(of: outro)
 		self.pausedAt = Date(timeIntervalSinceNow: duration)
-		print(self.players.map { $0.track?.name })
+		//print(self.players.map { $0.track?.name })
 		self.players.forEach { $0.pause(outro: outro, completion: nil) }
 		self.transitionTimer?.invalidate()
-		log("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
+		logg("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + duration) { comp() } }
 	}
 	
@@ -207,7 +207,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		guard let startedAt = self.startedAt else { return }
 		self.pause(outro: .default)
 
-		log("\(self) has ended. Took \(abs(startedAt.timeIntervalSinceNow)), expected \(self.currentDuration).", .verbose)
+		logg("\(self) has ended. Took \(abs(startedAt.timeIntervalSinceNow)), expected \(self.currentDuration).", .verbose)
 		self.startedAt = nil
 	}
 	

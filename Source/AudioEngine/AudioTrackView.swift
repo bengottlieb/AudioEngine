@@ -65,7 +65,7 @@ public struct AudioTrackView: View {
 				} else if let samples = samples {
 					ProgressRectangle(progress: progress)
 						.fill(Color.red)
-					Waveform(samples: samples.samples, max: samples.max, spacing: spacing)
+					Waveform(samples: samples.samples, range: samples.range, spacing: spacing)
 						.stroke(lineWidth: 0.5)
 				} else {
 					ActivityIndicatorView()

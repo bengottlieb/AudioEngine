@@ -35,7 +35,6 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		guard state != oldValue, self.track != nil else { return }
 		self.objectWillChange.send()
 		self.channel?.playStateChanged()
-		//print("State for \(track.name) changed to \(state)")
 	}}
 
 	deinit {
@@ -47,7 +46,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	
 	@discardableResult
 	func load(track: AudioTrack, into channel: AudioChannel) -> Self {
-		if !track.url.existsOnDisk { print("Trying to play a missing file: \(track.url.path)") }
+		if !track.url.existsOnDisk { logg("Trying to play a missing file: \(track.url.path)") }
 		self.track = track
 		self.channel = channel
 		return self
@@ -174,8 +173,8 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		player = newPlayer
 		newPlayer.prepareToPlay()
 		if track.duration > newPlayer.duration * 1.1 { newPlayer.numberOfLoops = -1 }
-		log(.break, .verbose)
-		log("ready to play \(track)", .verbose)
+		logg(.break, .verbose)
+		logg("ready to play \(track)", .verbose)
 		return self
 	}
 	
@@ -187,7 +186,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		self.fadeInTimer?.invalidate()
 		
 		if duration > 0 {
-			log("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
+			logg("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
 			self.player?.volume = self.effectiveVolume
 			self.requestedVolume = volume
 			startPlayer()

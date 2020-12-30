@@ -39,10 +39,12 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 
 	public struct Samples {
 		public let max: Float
+		public let min: Float?
 		public let samples: [Float]
 		public let duration: TimeInterval
+		public var range: Range<Float> { (min ?? 0)..<max }
 		
-		static let empty = Samples(max: 0, samples: [], duration: 0)
+		static let empty = Samples(max: 0, min: 0, samples: [], duration: 0)
 	}
 	
 	struct RangeAndScale: Hashable {
@@ -137,6 +139,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		reader.add(readerOutput)
 
 		var sampleMax: Float = 0
+		var sampleMin: Float = 0
 		let samplesPerPixel = max(1, requestedSamples / targetSamples)
 		let filter = [Float](repeating: 1.0 / Float(samplesPerPixel), count: samplesPerPixel)
 
@@ -160,7 +163,7 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 			let samplesToProcess = downSampledLength * samplesPerPixel
 			
 			guard samplesToProcess > 0 else { continue }
-			let processed = self.processSamples(from: &sampleBuffer, sampleMax: &sampleMax, samplesToProcess: samplesToProcess, downSampledLength: downSampledLength, samplesPerPixel: samplesPerPixel, filter: filter)
+			let processed = self.processSamples(from: &sampleBuffer, sampleMin: &sampleMin, sampleMax: &sampleMax, samplesToProcess: samplesToProcess, downSampledLength: downSampledLength, samplesPerPixel: samplesPerPixel, filter: filter)
 			
 			outputSamples += processed
 			if processed.count > 0 {
@@ -173,21 +176,22 @@ public class AudioAnalysis: ObservableObject, Identifiable {
 		let remainingSamples = sampleBuffer.count / MemoryLayout<UInt16>.size
 		if remainingSamples > 0 {
 			let filter = [Float](repeating: 1.0 / Float(remainingSamples), count: remainingSamples)
-			let chunk = self.processSamples(from: &sampleBuffer, sampleMax: &sampleMax, samplesToProcess: remainingSamples, downSampledLength: 1, samplesPerPixel: samplesPerPixel, filter: filter)
+			let chunk = self.processSamples(from: &sampleBuffer, sampleMin: &sampleMin, sampleMax: &sampleMax, samplesToProcess: remainingSamples, downSampledLength: 1, samplesPerPixel: samplesPerPixel, filter: filter)
 			
 			outputSamples += chunk
 		}
 		
 		let samples = outputSamples.map { $0 / silenceDbThreshold }
 		let maxSample = samples.max() ?? 0
-		self.samples = Samples(max: maxSample, samples: samples, duration: TimeInterval(CMTimeGetSeconds(duration)))
+		let minSample = samples.min() ?? 0
+		self.samples = Samples(max: maxSample, min: minSample, samples: samples, duration: TimeInterval(CMTimeGetSeconds(duration)))
 		
 		self.state = .sampled
 		return self.samples
 	}
 	
 	private var silenceDbThreshold: Float { return -50.0 } // everything below -50 dB will be clipped
-	func processSamples(from sampleBuffer: inout Data, sampleMax: inout Float, samplesToProcess: Int, downSampledLength: Int, samplesPerPixel: Int, filter: [Float]) -> [Float] {
+	func processSamples(from sampleBuffer: inout Data, sampleMin: inout Float, sampleMax: inout Float, samplesToProcess: Int, downSampledLength: Int, samplesPerPixel: Int, filter: [Float]) -> [Float] {
 		
 		var downSampledData = [Float]()
 		let sampleLength = sampleBuffer.count / MemoryLayout<Int16>.size
