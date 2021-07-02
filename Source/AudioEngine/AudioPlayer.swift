@@ -74,7 +74,7 @@ public extension AudioReporting {
 	}
 }
 
-public protocol AudioPlayer: class, AudioReporting {
+public protocol AudioPlayer: AnyObject, AudioReporting {
 	func pause(outro: AudioTrack.Segue?, completion: (() -> Void)?)
 	func play(transition: AudioTrack.Transition, completion: (() -> Void)?) throws
 	func mute(to factor: Float, segue: AudioTrack.Segue, completion: (() -> Void)?)
