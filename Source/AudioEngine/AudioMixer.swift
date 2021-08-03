@@ -41,8 +41,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
 	public var duration: TimeInterval? { channels.values.compactMap({ $0.duration }).max() }
 
-	public func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
-		channels.values.forEach { try? $0.play(transition: transition) }
+	public func play(track: AudioTrack?, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+		channels.values.forEach { try? $0.play(track: track, transition: transition) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}
 	

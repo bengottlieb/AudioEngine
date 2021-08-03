@@ -27,7 +27,10 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public func hash(into hasher: inout Hasher) { self.id.hash(into: &hasher) }
 	
 	public var description: String { "\(name): \(Date.ageString(age: self.effectiveDuration, style: .short))"}
-	public init(url: URL, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, intro: Segue? = nil, outro: Segue? = nil) {
+	public init?(url: URL?, name: String? = nil, id: String? = nil, volume: Float = 1.0, duration: TimeInterval? = nil, intro: Segue? = nil, outro: Segue? = nil) {
+		guard let url = url, url.isFileURL else {
+			return nil
+		}
 		self.asset = AVURLAsset(url: url)
 		self.url = url
 		self.volume = volume
@@ -64,7 +67,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 			.preload()
 	}
 	
-	static func silence(duration: TimeInterval) -> AudioTrack { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }
+	static func silence(duration: TimeInterval) -> AudioTrack? { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }
 	
 	func duration(of fade: Segue?) -> TimeInterval {
 		guard let duration = fade?.duration else { return 0 }

@@ -56,9 +56,9 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		self.requestedVolume * (1.0 - self.muteFactor)
 	}
 	
-	func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+	func play(track incomingTrack: AudioTrack? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		hasSentFinished = false
-		guard let track = self.track else { return }
+		guard let track = incomingTrack ?? self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
 			self.pausedAt = nil

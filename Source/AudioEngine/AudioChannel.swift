@@ -62,13 +62,17 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.name = name
 	}
 	
-	public func play(transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+	public func play(track: AudioTrack? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		if let current = self.currentPlayer {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
 			if !current.state.contains(.outroing) {
 				current.pause(outro: .abrupt, completion: nil)
 			}
 			
+			if let newTrack = track {
+				queue.clear()
+				queue.append(newTrack)
+			}
 			//if queue.count > 1, queue.firstIndex(of: current.track) == 0 { self.queue.dropFirst() }
 			self.fadingOutPlayer = current
 			self.pausedAt = nil
@@ -80,7 +84,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
 			totalPauseTime += pauseDuration
-			self.players.forEach { _ = try? $0.play(transition: transition, completion: nil) }
+			self.players.forEach { _ = try? $0.play(track: nil, transition: transition, completion: nil) }
 			if let transitionAt = self.willTransitionAt {
 				willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
 				transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false) { _ in
@@ -184,7 +188,8 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		self.queue = queue
 	}
 	
-	public func enqueue(track: AudioTrack, intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil) {
+	public func enqueue(track: AudioTrack?, intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil) {
+		guard let track = track else { return }
 		self.queue.append(track, intro: intro, outro: outro)
 	}
 	
@@ -237,7 +242,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		
 		do {
 			currentPlayer = try self.newPlayer(for: track)
-			try currentPlayer?.play(transition: .default, completion: nil)
+			try currentPlayer?.play(track: nil, transition: .default, completion: nil)
 			
 			if self.isMuted { currentPlayer?.mute(to: 0, segue: .abrupt, completion: nil) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)

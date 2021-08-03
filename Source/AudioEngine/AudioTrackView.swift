@@ -91,7 +91,7 @@ public struct AudioTrackView: View {
 			if source.isPlaying {
 				source.pause(outro: .default, completion: nil)
 			} else {
-				try? source.play(transition: .default, completion: nil)
+				try? source.play(track: nil, transition: .default, completion: nil)
 				self.cancellable = source.activePlayers.first?.progressPublisher.sink { time in
 					if let duration = samples?.duration {
 						progress = time / duration
