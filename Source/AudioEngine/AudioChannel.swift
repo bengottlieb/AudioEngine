@@ -63,15 +63,15 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	}
 	
 	public func play(track: AudioTrack? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+		if let newTrack = track {
+			queue.clear()
+			queue.append(newTrack)
+		}
+
 		if let current = self.currentPlayer {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
 			if !current.state.contains(.outroing) {
 				current.pause(outro: .abrupt, completion: nil)
-			}
-			
-			if let newTrack = track {
-				queue.clear()
-				queue.append(newTrack)
 			}
 			//if queue.count > 1, queue.firstIndex(of: current.track) == 0 { self.queue.dropFirst() }
 			self.fadingOutPlayer = current

@@ -6,6 +6,7 @@
 //
 
 import Suite
+import Combine
 
 public class RemoteAudio {
 	public static let instance = RemoteAudio()
