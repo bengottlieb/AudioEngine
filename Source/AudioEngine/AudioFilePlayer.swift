@@ -100,6 +100,10 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		let duration = track.duration(of: track.outro ?? .default)
 		self.setupEndTimer(duration: track.effectiveDuration - duration, outroAt: track.outro?.duration)
 	}
+
+	func seekTo(percent: Double) {
+		self.player?.seekTo(percent: percent)
+	}
 	
 	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
 		self.fadeOutTimer?.invalidate()
@@ -111,6 +115,9 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: duration - fadeDuration, repeats: false) { _ in self.didBeginFadeOut(fadeDuration) }
 		}
 	}
+	
+	public var allTracks: [AudioTrack] { [track].compactMap() }
+	public var allPlayers: [AudioPlayer] { [self] }
 	
 	func mute(to factor: Float, segue: AudioTrack.Segue = .defaultDuck, completion: (() -> Void)? = nil) {
 		let actualFade = self.isPlaying ? segue : .abrupt
@@ -297,3 +304,4 @@ extension AudioFilePlayer: AudioSource {
 	
 
 }
+

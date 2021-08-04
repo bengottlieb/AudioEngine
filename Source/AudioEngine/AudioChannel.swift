@@ -8,7 +8,7 @@ import AVFoundation
 import Suite
 import Combine
 
-public class AudioChannel: ObservableObject, AudioPlayer {
+public class AudioChannel: ObservablePlayer {
 	public let name: String
 	
 	@Published public private(set) var pausedAt: Date?
@@ -40,7 +40,11 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	public var currentTrackIndex: Int?
 	private var pendingTrackIndex: Int?
 	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
-	public var duration: TimeInterval? { players.compactMap({ $0.duration }).sum() }
+	public var duration: TimeInterval? {
+		let durations = players.compactMap({ $0.duration })
+		if durations.isEmpty { return queue.totalDuration() }
+		return durations.sum()
+	}
 
 	//private var availablePlayers: Set<Player> = []
 	private var currentPlayer: AudioSource? { didSet { self.currentTrack = currentPlayer?.track }}
@@ -48,6 +52,16 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 	private weak var transitionTimer: Timer?
 	private var players: [AudioSource] { [currentPlayer, fadingOutPlayer].compactMap { $0 }}
 	
+	public var allTracks: [AudioTrack] {
+		let active = players.flatMap { $0.allTracks }
+		if active.isNotEmpty { return active }
+		
+		if let queued = queue.tracks.first { return [queued] }
+		return []
+		
+	}
+	public var allPlayers: [AudioPlayer] { players }
+
 	var muteFactor: Float = 0.0 { didSet { self.mute(to: muteFactor) }}
 
 	public static func channel(named name: String) -> AudioChannel {
@@ -68,7 +82,7 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 			queue.append(newTrack)
 		}
 
-		if let current = self.currentPlayer {
+		if let current = self.currentPlayer, current.isPlaying {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
 			if !current.state.contains(.outroing) {
 				current.pause(outro: .abrupt, completion: nil)
@@ -104,10 +118,14 @@ public class AudioChannel: ObservableObject, AudioPlayer {
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}
+
+	public func seekTo(percent: Double) {
+		players.forEach { $0.seekTo(percent: percent) }
+	}
 	
 	public func pause(outro: AudioTrack.Segue?, completion: (() -> Void)? = nil) {
 		if self.state.contains(.outroing), outro != .abrupt { return }
-		if self.pausedAt != nil || self.startedAt == nil {
+		if (self.pausedAt != nil || self.startedAt == nil), !isPlaying {
 			completion?()
 			return
 		}

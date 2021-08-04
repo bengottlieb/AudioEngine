@@ -45,6 +45,10 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		channels.values.forEach { try? $0.play(track: track, transition: transition) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}
+
+	public func seekTo(percent: Double) {
+		channels.values.forEach { $0.seekTo(percent: percent) }
+	}
 	
 	public func mute(to factor: Float, segue: AudioTrack.Segue = .defaultDuck, completion: (() -> Void)? = nil) {
 		let actualFade = self.isPlaying ? segue : .abrupt
@@ -103,5 +107,8 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	func finishedPlaying(_ track: AudioTrack) {
 		finishedPlayingPublisher.send(track)
 	}
+
+	public var allTracks: [AudioTrack] { Array(channels.values).flatMap { $0.allTracks }}
+	public var allPlayers: [AudioPlayer] { Array(channels.values).flatMap { $0.allPlayers }}
 
 }

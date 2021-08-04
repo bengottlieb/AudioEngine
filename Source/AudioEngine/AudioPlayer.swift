@@ -42,7 +42,9 @@ public protocol AudioReporting {
 
 	///Active indicates players that are still playing their tracks (or tracks still in their players), regardless of fade-out status
 	var activeTracks: [AudioTrack] { get }
+	var allTracks: [AudioTrack] { get }
 	var activePlayers: [AudioPlayer] { get }
+	var allPlayers: [AudioPlayer] { get }
 }
 
 public extension AudioReporting {
@@ -72,6 +74,14 @@ public extension AudioReporting {
 	var nonOutroingPlayers: [AudioPlayer] {
 		activePlayers.filter({ !$0.state.contains(.outroing) && $0.state.contains(.playing) }).flatMap { $0.activePlayers }
 	}
+	
+	var currentTracks: [AudioTrack] {
+		let players = allPlayers.compactMap { $0.allTracks.first }
+		if players.isNotEmpty { return players }
+		
+		let all = allTracks
+		return all.isEmpty ? [] : [all[0]]
+	}
 }
 
 public protocol AudioPlayer: AnyObject, AudioReporting {
@@ -82,6 +92,7 @@ public protocol AudioPlayer: AnyObject, AudioReporting {
 
 	func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
 	func setMuted(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)?)
+	func seekTo(percent: Double)
 	
 	var progressPublisher: AnyPublisher<TimeInterval, Never> { get }
 	var duration: TimeInterval? { get }
@@ -99,6 +110,9 @@ public protocol AudioSource: AudioPlayer {
 }
 
 extension Array: AudioReporting where Element: AudioReporting {
+	public var allTracks: [AudioTrack] { self.flatMap { ($0 as? AudioPlayer)?.activeTracks ?? [] }}
+	public var allPlayers: [AudioPlayer] { self.flatMap { ($0 as? AudioPlayer)?.allPlayers ?? [] }}
+	
 	public var state: PlayerState { reduce(PlayerState()) { $0.union($1.state) } }
 	public var timeRemaining: TimeInterval { reduce(0) { Swift.max($0, $1.timeRemaining) } }
 	public var timeElapsed: TimeInterval { reduce(0) { Swift.max($0, $1.timeElapsed) } }
