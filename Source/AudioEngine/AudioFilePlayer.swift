@@ -102,7 +102,9 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 
 	func seekTo(percent: Double) {
-		self.player?.seekTo(percent: percent)
+		guard let player = player else { return }
+		player.seekTo(percent: percent)
+		self.setupEndTimer(duration: player.duration - player.currentTime, outroAt: track?.outro?.duration)
 	}
 	
 	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
