@@ -134,7 +134,7 @@ public class AudioChannel: ObservablePlayer {
 		//print(self.players.map { $0.track?.name })
 		self.players.forEach { $0.pause(outro: outro, completion: nil) }
 		self.transitionTimer?.invalidate()
-		logg("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
+		//logg("Paused at: \(self.pausedAt!), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + duration) { comp() } }
 	}
 	
