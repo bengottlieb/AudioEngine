@@ -17,9 +17,41 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var allowRecording = false { didSet { self.updateSession() }}
 	public var state: PlayerState { self.channels.values.reduce([]) { $0.union($1.state) }}
 	public var finishedPlayingPublisher = PassthroughSubject<AudioTrack, Never>()
+	private var isPausedDueToInterruption = false
+	
+	private var cancelBag: Set<AnyCancellable> = []
 	
 	init() {
 		self.updateSession()
+		AVAudioSession.interruptionNotification.publisher()
+			.receive(on: RunLoop.main)
+			.eraseToAnyPublisher()
+			.sink { note in
+				self.handleInterruption(note: note)
+			}.store(in: &cancelBag)
+		
+	}
+	
+	func handleInterruption(note: Notification) {
+		if let type = note.interruptionType {
+			switch type {
+			case .began:
+				print("Interrruption began")
+				if !isPlaying { return }
+				pause(outro: .abrupt, completion: nil)
+				isPausedDueToInterruption = true
+				
+			case .ended:
+				print("Interrruption ended")
+				if !isPausedDueToInterruption { return }
+				try? play(track: nil, transition: .default, completion: nil)
+				isPausedDueToInterruption = false
+				
+			@unknown default:
+				print("Unknown interruption kind")
+			}
+		}
+
 	}
 	
 	func updateSession() {
@@ -111,4 +143,20 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var allTracks: [AudioTrack] { Array(channels.values).flatMap { $0.allTracks }}
 	public var allPlayers: [AudioPlayer] { Array(channels.values).flatMap { $0.allPlayers }}
 
+}
+
+extension Notification {
+	var interruptionReason: AVAudioSession.InterruptionReason? {
+		if #available(iOS 14.5, *) {
+			guard let rawValue = userInfo?[AVAudioSessionInterruptionReasonKey] as? UInt else { return nil }
+			return AVAudioSession.InterruptionReason(rawValue: rawValue)
+		} else {
+			return nil
+		}
+	}
+
+	var interruptionType: AVAudioSession.InterruptionType? {
+		guard let rawValue = userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt else { return nil }
+		return AVAudioSession.InterruptionType(rawValue: rawValue)
+	}
 }
