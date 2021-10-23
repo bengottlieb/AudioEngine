@@ -36,22 +36,21 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		if let type = note.interruptionType {
 			switch type {
 			case .began:
-				print("Interrruption began")
+				print("AudioMixer Interrruption began")
 				if !isPlaying { return }
 				pause(outro: .abrupt, completion: nil)
 				isPausedDueToInterruption = true
 				
 			case .ended:
-				print("Interrruption ended")
+				print("AudioMixer Interrruption ended")
 				if !isPausedDueToInterruption { return }
 				try? play(track: nil, transition: .default, completion: nil)
 				isPausedDueToInterruption = false
 				
 			@unknown default:
-				print("Unknown interruption kind")
+				print("AudioMixer Unknown interruption kind")
 			}
 		}
-
 	}
 	
 	func updateSession() {
@@ -145,7 +144,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 
 }
 
-extension Notification {
+public extension Notification {
 	var interruptionReason: AVAudioSession.InterruptionReason? {
 		if #available(iOS 14.5, *) {
 			guard let rawValue = userInfo?[AVAudioSessionInterruptionReasonKey] as? UInt else { return nil }
