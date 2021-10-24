@@ -36,19 +36,19 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 		if let type = note.interruptionType {
 			switch type {
 			case .began:
-				print("AudioMixer Interrruption began")
+				logg("AudioMixer Interrruption began")
 				if !isPlaying { return }
 				pause(outro: .abrupt, completion: nil)
 				isPausedDueToInterruption = true
 				
 			case .ended:
-				print("AudioMixer Interrruption ended")
+				logg("AudioMixer Interrruption ended")
 				if !isPausedDueToInterruption { return }
 				try? play(track: nil, transition: .default, completion: nil)
 				isPausedDueToInterruption = false
 				
 			@unknown default:
-				print("AudioMixer Unknown interruption kind")
+				logg("AudioMixer Unknown interruption kind")
 			}
 		}
 	}

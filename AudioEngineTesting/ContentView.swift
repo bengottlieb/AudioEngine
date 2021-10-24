@@ -27,7 +27,7 @@ struct ContentView: View {
 	
 	func play(_ url: URL) {
 		guard let track = AudioTrack(url: url) else {
-			print("Failed to build track for \(url)")
+			logg("Failed to build track for \(url)")
 			return
 		}
 		
