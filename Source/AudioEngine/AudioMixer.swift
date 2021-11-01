@@ -73,6 +73,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var duration: TimeInterval? { channels.values.compactMap({ $0.duration }).max() }
 
 	public func play(track: AudioTrack?, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+		assert(Thread.isMainThread, "AudionMixer.play(track:transition:completion) must be called on the main thread")
 		channels.values.forEach { try? $0.play(track: track, transition: transition) }
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}

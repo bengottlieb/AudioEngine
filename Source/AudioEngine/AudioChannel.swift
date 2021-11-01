@@ -77,6 +77,7 @@ public class AudioChannel: ObservablePlayer {
 	}
 	
 	public func play(track: AudioTrack? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+		assert(Thread.isMainThread, "AudioChannel.play(track:transition:completion) must be called on the main thread")
 		if let newTrack = track {
 			queue.clear()
 			queue.append(newTrack)

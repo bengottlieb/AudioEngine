@@ -57,6 +57,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func play(track incomingTrack: AudioTrack? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+		assert(Thread.isMainThread, "AudioFilePlayer.play(track:transition:completion) must be called on the main thread")
 		hasSentFinished = false
 		guard let track = incomingTrack ?? self.track else { return }
 		if let pausedAt = self.pausedAt {
