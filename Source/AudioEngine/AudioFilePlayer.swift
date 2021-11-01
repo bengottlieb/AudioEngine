@@ -189,18 +189,17 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func apply(intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil, to volume: Float) {
-		guard let track = self.track, let player = self.player else { return }
+		guard let track = self.track else { return }
 		guard let segue = intro ?? outro else { return }
 		let duration = track.duration(of: segue)
 		self.state.formUnion(intro == nil ? .outroing : .introing)
 		self.fadeInTimer?.invalidate()
 		
 		if duration > 0 {
-			logg("Fading \(self) from \(self.requestedVolume) to \(volume)", .verbose)
 			self.player?.volume = self.effectiveVolume
 			self.requestedVolume = volume
 			startPlayer()
-			self.fadePlayer(from: player.volume, to: self.effectiveVolume, over: duration)
+			self.fadePlayer(from: 0, to: self.effectiveVolume, over: duration)
 			self.fadeInTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
 				self.state.remove([.introing, .outroing])
 			}
@@ -217,6 +216,8 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		let start = Date()
 		self.volumeFadeTimer?.invalidate()
 		self.player?.volume = isMuted ? 0 : Float(fromVol)
+        logg("Fading \(self) from \(fromVol) to \(toVol)", .verbose)
+
 		self.volumeFadeTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
 			let elapsed = abs(start.timeIntervalSinceNow)
 			let percentage = (elapsed / duration)
@@ -308,3 +309,10 @@ extension AudioFilePlayer: AudioSource {
 
 }
 
+extension AudioFilePlayer: LoopableAudioPlayer {
+    func loop() {
+        player?.numberOfLoops = 1000000
+        endTimer?.invalidate()
+        endTimer = nil
+    }
+}

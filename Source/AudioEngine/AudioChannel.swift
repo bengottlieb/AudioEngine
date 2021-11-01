@@ -269,9 +269,13 @@ public class AudioChannel: ObservablePlayer {
 			
 			if self.isMuted { currentPlayer?.mute(to: 0, segue: .abrupt, completion: nil) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
-			transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
-				self.startNextTrack()
-			})
+            if queue.useLoops, queue.count == 1, let player = currentPlayer as? LoopableAudioPlayer {
+                player.loop()
+            } else {
+                transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
+                    self.startNextTrack()
+                })
+            }
 		} catch {
 			currentPlayer = nil
 		}

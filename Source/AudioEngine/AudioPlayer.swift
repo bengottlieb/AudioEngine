@@ -123,3 +123,6 @@ extension Array: AudioReporting where Element: AudioReporting {
 	public var isPaused: Bool { !self.activePlayers.filter({ $0.isPaused }).isEmpty }
 }
 
+protocol LoopableAudioPlayer: AudioPlayer {
+    func loop() 
+}
