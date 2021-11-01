@@ -41,7 +41,7 @@ public class AudioChannel: ObservablePlayer {
 	private var pendingTrackIndex: Int?
 	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
 	public var duration: TimeInterval? {
-		let durations = players.compactMap({ $0.duration })
+		let durations = activePlayers.compactMap({ $0.duration })
 		if durations.isEmpty { return queue.totalDuration() }
 		return durations.sum()
 	}
@@ -95,6 +95,7 @@ public class AudioChannel: ObservablePlayer {
 			self.currentPlayer = nil
 		}
 		
+		if let index = currentTrackIndex, index <= queue.count { currentTrackIndex = nil }
 		if let pausedAt = self.pausedAt {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
@@ -239,6 +240,9 @@ public class AudioChannel: ObservablePlayer {
 		var nextIndex = 0
 		if let current = self.currentTrackIndex {
 			nextIndex = current + 1
+			if queue.useLoops, nextIndex >= queue.count {
+				nextIndex = 0
+			}
 		}
 		
 //		fadingOutPlayer = currentPlayer
