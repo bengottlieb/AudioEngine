@@ -104,7 +104,7 @@ public class AudioChannel: ObservablePlayer {
 			if let transitionAt = self.willTransitionAt {
 				willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
 				transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false) { _ in
-					self.startNextTrack()
+                    self.startNextTrack(transition: transition)
 				}
 			}
 			logg("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
@@ -115,7 +115,7 @@ public class AudioChannel: ObservablePlayer {
 			self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, intro: self.defaultChannelFadeIn, outro: self.defaultChannelFadeOut)
 			self.startedAt = Date()
 			logg("starting channel \(self.name) at \(self.startedAt!)", .verbose)
-			self.startNextTrack()
+			self.startNextTrack(transition: transition)
 			logg("done setting up channel \(self.name)", .verbose)
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
@@ -204,7 +204,10 @@ public class AudioChannel: ObservablePlayer {
 		}
 	}
 
-	public func setQueue(_ queue: AudioQueue) {
+    public func setQueue(_ queue: AudioQueue, andClear: Bool = true) {
+        if andClear {
+            reset()
+        }
 		self.queue = queue
 	}
 	
@@ -236,7 +239,7 @@ public class AudioChannel: ObservablePlayer {
 		self.startedAt = nil
 	}
 	
-	func startNextTrack() {
+    func startNextTrack(transition: AudioTrack.Transition = .default) {
 		var nextIndex = 0
 		if let current = self.currentTrackIndex {
 			nextIndex = current + 1
@@ -265,7 +268,7 @@ public class AudioChannel: ObservablePlayer {
 		
 		do {
 			currentPlayer = try self.newPlayer(for: track)
-			try currentPlayer?.play(track: nil, transition: .default, completion: nil)
+			try currentPlayer?.play(track: nil, transition: transition, completion: nil)
 			
 			if self.isMuted { currentPlayer?.mute(to: 0, segue: .abrupt, completion: nil) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
@@ -273,7 +276,7 @@ public class AudioChannel: ObservablePlayer {
                 player.loop()
             } else {
                 transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
-                    self.startNextTrack()
+                    self.startNextTrack(transition: transition)
                 })
             }
 		} catch {

@@ -216,11 +216,12 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		let start = Date()
 		self.volumeFadeTimer?.invalidate()
 		self.player?.volume = isMuted ? 0 : Float(fromVol)
-        logg("Fading \(self) from \(fromVol) to \(toVol)", .verbose)
+        logg("Fading \(self) from \(fromVol) to \(toVol) over \(duration)", .verbose)
 
 		self.volumeFadeTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
 			let elapsed = abs(start.timeIntervalSinceNow)
 			let percentage = (elapsed / duration)
+            print("Percentage set to \(percentage)")
 			if percentage >= 1 {
 				self.player?.volume = self.isMuted ? 0 : Float(toVol)
 				timer.invalidate()
