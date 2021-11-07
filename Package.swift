@@ -17,7 +17,7 @@ let package = Package(
             targets: ["AudioEngine"]),
     ],
     dependencies: [
-		.package(url: "https://github.com/bengottlieb/Suite.git", from: "1.0.0"),
+		.package(url: "https://github.com/bengottlieb/Suite.git", from: "1.0.13"),
 
     ],
     targets: [
