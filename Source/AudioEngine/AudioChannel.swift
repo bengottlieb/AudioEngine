@@ -86,7 +86,7 @@ public class AudioChannel: ObservablePlayer {
 		if let current = self.currentPlayer, current.isPlaying {
 			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
 			if !current.state.contains(.outroing) {
-				current.pause(outro: .abrupt, completion: nil)
+				current.pause(outro: transition.outro ?? .abrupt, completion: nil)
 			}
 			//if queue.count > 1, queue.firstIndex(of: current.track) == 0 { self.queue.dropFirst() }
 			self.fadingOutPlayer = current
@@ -141,6 +141,7 @@ public class AudioChannel: ObservablePlayer {
 	}
 	
 	func duration(of segue: AudioTrack.Segue?) -> TimeInterval {
+		if queue.useLoops == true { return segue?.duration ?? timeRemaining }
 		guard let duration = segue?.duration, duration > 0 else { return 0 }
 		
 		return min(timeRemaining, duration)
@@ -260,9 +261,9 @@ public class AudioChannel: ObservablePlayer {
 		transitionTimer?.invalidate()
 		var transitionTime = track.duration
 		if self.shouldCrossFade, let next = self.queue[nextIndex + 1] {
-			let fadeOutDuration = track.duration(of: track.outro)
+			let fadeOutDuration = track.duration(of: track.outro, in: queue)
 			let nextFadeIn = next.intro ?? self.defaultChannelFadeIn
-			let fadeInDuration = next.duration(of: nextFadeIn)
+			let fadeInDuration = next.duration(of: nextFadeIn, in: queue)
 			transitionTime -= (fadeInDuration + fadeOutDuration) / 2
 		}
 		

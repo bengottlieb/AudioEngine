@@ -69,8 +69,8 @@ public struct AudioQueue {
 			if !useLoops {
 				let intro = track.intro ?? defaultIntro ?? .linearFade(2)
 				let outro = track.outro ?? defaultOutro ?? .linearFade(2)
-				let introDuration = track.duration(of: intro)
-				let outroDuration = track.duration(of: outro)
+				let introDuration = track.duration(of: intro, in: self)
+				let outroDuration = track.duration(of: outro, in: self)
 				
 				if index != 0, crossFade { trackDuration -= introDuration / 2 }
 				if index != (tracks.count - 1), crossFade { trackDuration -= outroDuration / 2 }

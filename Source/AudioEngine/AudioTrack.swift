@@ -69,7 +69,8 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	
 	static func silence(duration: TimeInterval) -> AudioTrack? { AudioTrack(url: Self.silenceURL, name: "silence", volume: 0, duration: duration) }
 	
-	func duration(of fade: Segue?) -> TimeInterval {
+	func duration(of fade: Segue?, in queue: AudioQueue?) -> TimeInterval {
+		if queue?.useLoops == true, let duration = fade?.duration { return duration }
 		guard let duration = fade?.duration else { return 0 }
 		if duration > self.duration / 2 { return self.duration / 2 }
 		return duration

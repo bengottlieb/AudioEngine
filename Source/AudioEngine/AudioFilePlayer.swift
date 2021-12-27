@@ -98,7 +98,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 			self.play(at: self.effectiveVolume)
 		}
 		
-		let duration = track.duration(of: track.outro ?? .default)
+		let duration = track.duration(of: track.outro ?? .default, in: channel?.queue)
 		self.setupEndTimer(duration: track.effectiveDuration - duration, outroAt: track.outro?.duration)
 	}
 
@@ -141,7 +141,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		if self.pausedAt == nil { self.pausedAt = Date(timeIntervalSinceNow: segue.duration) }
 		self.invalidateTimers()
 		
-		let outroDuration = track.duration(of: segue)
+		let outroDuration = track.duration(of: segue, in: channel?.queue)
 		if outroDuration > 0 {
 			state.formUnion(.outroing)
 			self.player?.setVolume(0.0, fadeDuration: outroDuration)
@@ -191,7 +191,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	func apply(intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil, to volume: Float) {
 		guard let track = self.track else { return }
 		guard let segue = intro ?? outro else { return }
-		let duration = track.duration(of: segue)
+		let duration = track.duration(of: segue, in: channel?.queue)
 		self.state.formUnion(intro == nil ? .outroing : .introing)
 		self.fadeInTimer?.invalidate()
 		
