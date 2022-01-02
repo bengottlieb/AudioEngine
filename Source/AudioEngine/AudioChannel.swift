@@ -76,9 +76,10 @@ public class AudioChannel: ObservablePlayer {
 		self.name = name
 	}
 	
-	public func play(track: AudioTrack? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
+	public func play(track: AudioTrack? = nil, loop: Bool? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		assert(Thread.isMainThread, "AudioChannel.play(track:transition:completion) must be called on the main thread")
 		if let newTrack = track {
+			if let loop = loop { queue.useLoops = loop }
 			queue.clear()
 			queue.append(newTrack)
 		}
@@ -100,7 +101,7 @@ public class AudioChannel: ObservablePlayer {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
 			totalPauseTime += pauseDuration
-			self.players.forEach { _ = try? $0.play(track: nil, transition: transition, completion: nil) }
+			self.players.forEach { _ = try? $0.play(track: nil, loop: nil, transition: transition, completion: nil) }
 			if let transitionAt = self.willTransitionAt {
 				willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
 				transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false) { _ in
@@ -269,7 +270,7 @@ public class AudioChannel: ObservablePlayer {
 		
 		do {
 			currentPlayer = try self.newPlayer(for: track)
-			try currentPlayer?.play(track: nil, transition: transition, completion: nil)
+			try currentPlayer?.play(track: nil, loop: nil, transition: transition, completion: nil)
 			
 			if self.isMuted { currentPlayer?.mute(to: 0, segue: .abrupt, completion: nil) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
