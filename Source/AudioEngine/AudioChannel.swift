@@ -169,7 +169,8 @@ public class AudioChannel: ObservablePlayer {
 		DispatchQueue.main.asyncAfter(deadline: .now() + actualFade.duration) { completion?() }
 	}
 	
-	private func clear() {
+	public func clear() {
+		self.clearQueue()
 		self.totalPauseTime = 0
 		self.pausedAt = nil
 		self.currentPlayer?.pause(outro: .abrupt, completion: nil)
