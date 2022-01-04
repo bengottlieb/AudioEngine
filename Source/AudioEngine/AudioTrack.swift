@@ -23,6 +23,7 @@ public struct AudioTrack: Codable, CustomStringConvertible, Equatable, Identifia
 	public var requestedRange: Range<TimeInterval>?													// if only part of it is required
 	public var effectiveDuration: TimeInterval { requestedRange?.delta ?? duration }		// the total amount of time the sound should be played for
 	public var isSilence: Bool { self.url == Self.silenceURL }
+	public var isLoopable = false
 	
 	public func hash(into hasher: inout Hasher) { self.id.hash(into: &hasher) }
 	

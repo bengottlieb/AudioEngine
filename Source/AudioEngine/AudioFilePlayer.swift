@@ -22,6 +22,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	var url: URL { track?.url ?? .blank }
 	
 	public var isPaused: Bool { pausedAt != nil }
+	public var isLoopable = false
 	var endTimerFireDate: Date?
 	weak var fadeInTimer: Timer?
 	weak var fadeOutTimer: Timer?
@@ -38,7 +39,13 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}}
 
 	deinit {
+		print("De-initing \(self)")
 		self.reset()
+	}
+	
+	override init() {
+		super.init()
+		print("Created \(self)")
 	}
 	
 	var currentTimeValue = CurrentValueSubject<TimeInterval, Never>(0)
@@ -49,6 +56,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		if !track.url.existsOnDisk { logg("Trying to play a missing file: \(track.url.path)") }
 		self.track = track
 		self.channel = channel
+		self.isLoopable = track.isLoopable
 		return self
 	}
 	
@@ -88,6 +96,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		self.startedAt = Date()
 		self.endedAt = nil
 		self.requestedVolume = track.volume
+		self.isLoopable = track.isLoopable
 //		let fadeIn = transition.intro ?? track.fadeIn ?? self.channel?.defaultChannelFadeIn ?? .default
 		if transition.intro.duration > 0 {
 			self.state = [.playing, .introing]
@@ -104,15 +113,23 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 
 	func seekTo(percent: Double) {
 		guard let player = player else { return }
+		if isLoopable, let dur = effectiveDuration {
+			let newElapsed = dur * percent
+			self.startedAt = Date().addingTimeInterval(-newElapsed)
+			return
+		}
 		player.seekTo(percent: percent)
 		self.setupEndTimer(duration: player.duration - player.currentTime, outroAt: track?.outro?.duration)
 	}
 	
 	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
+		print("Setting up end timer: \(duration)")
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
 		self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
-		self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in self.didFinishPlaying() }
+		self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
+			self.didFinishPlaying()
+		}
 		
 		if let fadeDuration = outroAt, fadeDuration > 0 {
 			self.fadeOutTimer = Timer.scheduledTimer(withTimeInterval: duration - fadeDuration, repeats: false) { _ in self.didBeginFadeOut(fadeDuration) }
@@ -182,7 +199,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		let newPlayer = try AVAudioPlayer(contentsOf: track.url)
 		player = newPlayer
 		newPlayer.prepareToPlay()
-		if track.duration > newPlayer.duration * 1.1 { newPlayer.numberOfLoops = -1 }
+		if track.effectiveDuration > newPlayer.duration * 1.1 { newPlayer.numberOfLoops = -1 }
 		logg(.break, .verbose)
 		logg("ready to play \(track)", .verbose)
 		return self
@@ -269,6 +286,7 @@ extension AudioFilePlayer {
 	}
 	
 	public var duration: TimeInterval? { return player?.duration ?? 0 }
+	public var effectiveDuration: TimeInterval? { track?.effectiveDuration ?? player?.duration ?? 0 }
 }
 
 extension AudioFilePlayer: AudioSource {
@@ -278,7 +296,11 @@ extension AudioFilePlayer: AudioSource {
 	}
 	
 	var timeElapsed: TimeInterval {
-		player?.currentTime ?? 0
+		guard let startedAt = startedAt else { return 0 }
+		
+		let total = abs(startedAt.timeIntervalSinceNow)
+		if let paused = pausedAt { return total - abs(paused.timeIntervalSinceNow) }
+		return total
 	}
 	
 	public func setDucked(on: Bool, segue: AudioTrack.Segue, completion: (() -> Void)? = nil) {

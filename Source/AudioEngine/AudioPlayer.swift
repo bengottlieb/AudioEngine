@@ -96,6 +96,8 @@ public protocol AudioPlayer: AnyObject, AudioReporting {
 	
 	var progressPublisher: AnyPublisher<TimeInterval, Never> { get }
 	var duration: TimeInterval? { get }
+	var effectiveDuration: TimeInterval? { get }			// taking into account any loops
+	var isLoopable: Bool { get }
 }
 
 public protocol ObservablePlayer: AudioPlayer, ObservableObject {
@@ -124,5 +126,4 @@ extension Array: AudioReporting where Element: AudioReporting {
 }
 
 protocol LoopableAudioPlayer: AudioPlayer {
-    func loop() 
 }

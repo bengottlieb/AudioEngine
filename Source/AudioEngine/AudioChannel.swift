@@ -41,10 +41,13 @@ public class AudioChannel: ObservablePlayer {
 	private var pendingTrackIndex: Int?
 	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
 	public var duration: TimeInterval? {
-		let durations = activePlayers.compactMap({ $0.duration })
+		let durations = activePlayers.compactMap({ $0.effectiveDuration })
 		if durations.isEmpty { return queue.totalDuration() }
 		return durations.sum()
 	}
+
+	public var effectiveDuration: TimeInterval? { duration }
+	public var isLoopable = false
 
 	//private var availablePlayers: Set<Player> = []
 	private var currentPlayer: AudioSource? { didSet { self.currentTrack = currentPlayer?.track }}
@@ -276,7 +279,6 @@ public class AudioChannel: ObservablePlayer {
 			if self.isMuted { currentPlayer?.mute(to: 0, segue: .abrupt, completion: nil) }
 			willTransitionAt = Date(timeIntervalSinceNow: transitionTime)
             if queue.useLoops, queue.count == 1, let player = currentPlayer as? LoopableAudioPlayer {
-                player.loop()
             } else {
                 transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
                     self.startNextTrack(transition: transition)

@@ -18,6 +18,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var state: PlayerState { self.channels.values.reduce([]) { $0.union($1.state) }}
 	public var finishedPlayingPublisher = PassthroughSubject<AudioTrack, Never>()
 	private var isPausedDueToInterruption = false
+	public var isLoopable = false
 	
 	private var cancelBag: Set<AnyCancellable> = []
 	
@@ -71,10 +72,11 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	
 	public var progressPublisher: AnyPublisher<TimeInterval, Never> { Just(0).eraseToAnyPublisher() }
 	public var duration: TimeInterval? { channels.values.compactMap({ $0.duration }).max() }
+	public var effectiveDuration: TimeInterval? { duration }
 
 	public func play(track: AudioTrack?, loop: Bool? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		assert(Thread.isMainThread, "AudionMixer.play(track:transition:completion) must be called on the main thread")
-		channels.values.forEach { try? $0.play(track: track, loop: loop, transition: transition) }
+		try mainChannel.play(track: track, loop: loop, transition: transition)
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
 	}
 
