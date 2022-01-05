@@ -49,6 +49,7 @@ public struct AudioQueue {
 	
 	mutating public func append(_ track: AudioTrack, intro: AudioTrack.Segue? = nil, outro: AudioTrack.Segue? = nil) {
 		var newTrack = track.adjustingFade(in: intro, out: outro)
+		if track.effectiveDuration > track.duration { useLoops = true }
 
 		if useLoops, let lastTrack = self.tracks.last, lastTrack == track {
 			newTrack = lastTrack
