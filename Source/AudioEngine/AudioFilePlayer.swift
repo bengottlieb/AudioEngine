@@ -210,7 +210,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 			self.player?.volume = self.effectiveVolume
 			self.requestedVolume = volume
 			startPlayer()
-			self.fadePlayer(from: 0, to: self.effectiveVolume, over: duration)
+			self.fadePlayer(from: 0, to: Double(self.effectiveVolume), over: duration, style: intro?.fadeStyle ?? .linear)
 			self.fadeInTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
 				self.state.remove([.introing, .outroing])
 			}
@@ -222,7 +222,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		}
 	}
 	
-	func fadePlayer(from fromVol: Float, to toVol: Float, over duration: TimeInterval) {
+	func fadePlayer(from fromVol: Double, to toVol: Double, over duration: TimeInterval, style: AudioTrack.FadeStyle) {
 		let delta = toVol - fromVol
 		let start = Date()
 		self.volumeFadeTimer?.invalidate()
@@ -237,7 +237,10 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 				self.player?.volume = self.isMuted ? 0 : Float(toVol)
 				timer.invalidate()
 			} else {
-				let newVolume = fromVol + Float(percentage) * delta
+				let volumePercentage = style.value(at: percentage)
+				let newVolume = fromVol + volumePercentage * delta
+				print("t: \(elapsed), %: \(percentage), volume: \(newVolume)")
+
 				self.player?.volume = self.isMuted ? 0 : Float(newVolume)
 			}
 		}
