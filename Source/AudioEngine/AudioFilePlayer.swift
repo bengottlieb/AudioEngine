@@ -39,13 +39,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}}
 
 	deinit {
-		print("De-initing \(self)")
 		self.reset()
-	}
-	
-	override init() {
-		super.init()
-		print("Created \(self)")
 	}
 	
 	var currentTimeValue = CurrentValueSubject<TimeInterval, Never>(0)
@@ -123,7 +117,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
-		print("Setting up end timer: \(duration)")
+		//print("Setting up end timer: \(duration)")
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
 		self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
@@ -233,11 +227,12 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		let start = Date()
 		self.volumeFadeTimer?.invalidate()
 		self.player?.volume = isMuted ? 0 : Float(fromVol)
-        logg("Fading \(self) from \(fromVol) to \(toVol) over \(duration)", .verbose)
+      //logg("Fading \(self) from \(fromVol) to \(toVol) over \(duration)", .verbose)
 
 		self.volumeFadeTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { timer in
 			let elapsed = abs(start.timeIntervalSinceNow)
 			let percentage = (elapsed / duration)
+			//print("Elapsed: \(elapsed.durationString()), level: \(percentage)")
 			if percentage >= 1 {
 				self.player?.volume = self.isMuted ? 0 : Float(toVol)
 				timer.invalidate()
