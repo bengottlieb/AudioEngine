@@ -239,7 +239,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 			} else {
 				let volumePercentage = style.value(at: percentage)
 				let newVolume = fromVol + volumePercentage * delta
-				print("t: \(elapsed), %: \(percentage), volume: \(newVolume)")
+				//print("t: \(elapsed), %: \(percentage), volume: \(newVolume)")
 
 				self.player?.volume = self.isMuted ? 0 : Float(newVolume)
 			}
