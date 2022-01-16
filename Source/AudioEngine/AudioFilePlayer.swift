@@ -110,6 +110,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		if isLoopable, let dur = effectiveDuration {
 			let newElapsed = dur * percent
 			self.startedAt = Date().addingTimeInterval(-newElapsed)
+			self.setupEndTimer(duration: dur - newElapsed, outroAt: track?.outro?.duration)
 			return
 		}
 		player.seekTo(percent: percent)
@@ -117,7 +118,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
-		//print("Setting up end timer: \(duration)")
+		print("Setting up end timer: \(duration)")
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
 		self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
