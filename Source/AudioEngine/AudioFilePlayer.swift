@@ -122,8 +122,9 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
 		self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
-		self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { _ in
-			self.didFinishPlaying()
+		self.endTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+			if self?.player?.isPlaying == true { self?.player?.stop() }
+			self?.didFinishPlaying()
 		}
 		
 		if let fadeDuration = outroAt, fadeDuration > 0 {
