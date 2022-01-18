@@ -114,11 +114,12 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 			return
 		}
 		player.seekTo(percent: percent)
+		startedAt = Date(timeIntervalSinceNow: -player.currentTime)
+		
 		self.setupEndTimer(duration: player.duration - player.currentTime, outroAt: track?.outro?.duration)
 	}
 	
 	func setupEndTimer(duration: TimeInterval, outroAt: TimeInterval?) {
-		print("Setting up end timer: \(duration)")
 		self.fadeOutTimer?.invalidate()
 		self.endTimer?.invalidate()
 		self.endTimerFireDate = Date(timeIntervalSinceNow: duration)
@@ -272,7 +273,8 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 
 extension AudioFilePlayer {
 	func didFinishPlaying() {
-		if !hasSentFinished, let track = self.track { AudioMixer.instance.finishedPlaying(track) }
+		if hasSentFinished { return }
+		if let track = self.track { AudioMixer.instance.finishedPlaying(track) }
 		state = []
 		hasSentFinished = true
 		endedAt = Date()
