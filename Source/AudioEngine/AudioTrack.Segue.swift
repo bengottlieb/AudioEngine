@@ -33,22 +33,20 @@ extension AudioTrack {
 		static public var `default` = Transition(intro: .default, outro: nil)
 	}
 	
-	public enum FadeStyle: String, Codable { case linear, exponential
+	public enum FadeStyle: Codable { case linear, exponential(Double)
 		func value(at t: Double) -> Double {
 			precondition(t >= 0 && t <= 1)
 
 			switch self {
 			case .linear: return t
-			case .exponential:
-				if t == 0 { return 0 }
-				return exp(1 - 1/t)
+			case .exponential(let floor):
+				if t == 0 { return floor }
+				return floor + pow(100, min(t, 1) - 1)
 			}
 		}
 	}
 	
-	public enum Segue: Codable, Equatable { case abrupt, constantPowerFade(TimeInterval), linearFade(TimeInterval), exponentialFade(TimeInterval)
-		enum CodingKeys: String, CodingKey { case name, duration }
-		
+	public enum Segue: Codable, Equatable { case abrupt, constantPowerFade(TimeInterval), linearFade(TimeInterval), exponentialFade(TimeInterval, Double)
 		var exists: Bool { duration > 0 }
 		
 		static public var `default` = Segue.linearFade(0.2)
@@ -56,7 +54,7 @@ extension AudioTrack {
 
 		var fadeStyle: FadeStyle {
 			switch self {
-			case .exponentialFade: return .exponential
+			case .exponentialFade(_, let floor): return .exponential(floor)
 			default: return .linear
 			}
 		}
@@ -74,40 +72,15 @@ extension AudioTrack {
 			case .abrupt: return 0
 			case .constantPowerFade(let duration): return duration
 			case .linearFade(let duration): return duration
-			case .exponentialFade(let duration): return duration
+			case .exponentialFade(let duration, _): return duration
 			}
-		}
-		
-		public init(from decoder: Decoder) throws {
-			let container = try decoder.container(keyedBy: CodingKeys.self)
-			let raw = try container.decode(String.self, forKey: .name)
-			switch raw {
-			case "abrupt": self = .abrupt
-			case "linear":
-				let duration = try container.decode(TimeInterval.self, forKey: .duration)
-				self = .linearFade(duration)
-			case "exponential":
-				let duration = try container.decode(TimeInterval.self, forKey: .duration)
-				self = .exponentialFade(duration)
-			case "constantPower":
-				let duration = try container.decode(TimeInterval.self, forKey: .duration)
-				self = .constantPowerFade(duration)
-			default: self = .linearFade(5)
-			}
-		}
-		
-		public func encode(to encoder: Encoder) throws {
-			var container = encoder.container(keyedBy: CodingKeys.self)
-			
-			try container.encode(self.name, forKey: .name)
-			try container.encode(duration, forKey: .duration)
 		}
 		
 		public func normalized(forMaxDuration max: TimeInterval) -> Self {
 			guard self.duration > max else { return self }
 			switch self {
 			case .linearFade(_): return .linearFade(max)
-			case .exponentialFade(_): return .exponentialFade(max)
+			case .exponentialFade(_, let floor): return .exponentialFade(max, floor)
 			case .constantPowerFade(_): return .constantPowerFade(max)
 			case .abrupt: return self
 			}
@@ -116,7 +89,7 @@ extension AudioTrack {
 		public static func ==(lhs: Segue, rhs: Segue) -> Bool {
 			switch (lhs, rhs) {
 			case (.abrupt, .abrupt): return true
-			case (.exponentialFade(let lhDuration), .exponentialFade(let rhDuration)): return lhDuration == rhDuration
+			case (.exponentialFade(let lhDuration, let lFloor), .exponentialFade(let rhDuration, let rFloor)): return lhDuration == rhDuration && lFloor == rFloor
 			case (.linearFade(let lhDuration), .linearFade(let rhDuration)): return lhDuration == rhDuration
 			case (.constantPowerFade(let lhDuration), .constantPowerFade(let rhDuration)): return lhDuration == rhDuration
 			default: return false
