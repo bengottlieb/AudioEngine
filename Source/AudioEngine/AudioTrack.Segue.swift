@@ -41,7 +41,7 @@ extension AudioTrack {
 			case .linear: return t
 			case .exponential(let floor):
 				if t == 0 { return floor }
-				return floor + pow(100, min(t, 1) - 1)
+				return floor + pow(200, min(t, 1) - 1)
 			}
 		}
 	}
