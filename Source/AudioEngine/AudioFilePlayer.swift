@@ -150,23 +150,26 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
-		guard let track = self.track, self.isPlaying else { return }
+		guard let track = self.track else { return }
 		let segue = outro ?? self.outro ?? .default
-		if self.pausedAt == nil { self.pausedAt = Date(timeIntervalSinceNow: segue.duration) }
-		self.invalidateTimers()
-		
 		let outroDuration = track.duration(of: segue, in: channel?.queue)
-		if outroDuration > 0 {
+
+		if outroDuration == 0 {
+			let isPlaying = self.isPlaying
+			self.state.remove([.playing, .introing, .outroing])
+			self.stopPlayer()
+			self.player?.volume = 0.0
+			if !isPlaying { return }
+		} else {
+			if self.pausedAt == nil { self.pausedAt = Date(timeIntervalSinceNow: segue.duration) }
+			self.invalidateTimers()
+			
 			state.formUnion(.outroing)
 			self.player?.setVolume(0.0, fadeDuration: outroDuration)
 			self.pauseTimer = Timer.scheduledTimer(withTimeInterval: outroDuration, repeats: false) { _ in
 				self.state.remove([.playing, .introing, .outroing])
 				self.stopPlayer()
 			}
-		} else {
-			self.state.remove([.playing, .introing, .outroing])
-			self.stopPlayer()
-			self.player?.volume = 0.0
 		}
 		if let comp = completion { DispatchQueue.main.asyncAfter(deadline: .now() + outroDuration) { comp() } }
 		self.channel?.playStateChanged()
