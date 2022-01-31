@@ -93,6 +93,8 @@ public class AudioChannel: ObservablePlayer {
 				current.pause(outro: transition.outro ?? .abrupt, completion: nil)
 			}
 			//if queue.count > 1, queue.firstIndex(of: current.track) == 0 { self.queue.dropFirst() }
+			self.fadingOutPlayer?.pause(outro: .abrupt, completion: nil)
+			self.fadingOutPlayer?.reset()
 			self.fadingOutPlayer = current
 			self.pausedAt = nil
 			self.startedAt	= nil
