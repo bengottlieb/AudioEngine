@@ -17,7 +17,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	public var allowRecording = false { didSet { self.updateSession() }}
 	public var state: PlayerState { self.channels.values.reduce([]) { $0.union($1.state) }}
 	public var finishedPlayingPublisher = PassthroughSubject<AudioTrack, Never>()
-	private var isPausedDueToInterruption = false
+	private var pausedDueToInterruptionCount = 0
 	public var isLoopable = false
 	
 	private var cancelBag: Set<AnyCancellable> = []
@@ -40,13 +40,16 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 				logg("AudioMixer Interrruption began")
 				if !isPlaying { return }
 				pause(outro: .abrupt, completion: nil)
-				isPausedDueToInterruption = true
+				pausedDueToInterruptionCount += 1
 				
 			case .ended:
-				logg("AudioMixer Interrruption ended")
-				if !isPausedDueToInterruption { return }
-				try? play(track: nil, transition: .default, completion: nil)
-				isPausedDueToInterruption = false
+				logg("AudioMixer Interrruption ended (\(pausedDueToInterruptionCount > 0 ? "from interruption" : "non-interruption based"))")
+				if pausedDueToInterruptionCount == 0 { return }
+				DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+					if self.pausedDueToInterruptionCount > 0 { return }
+					self.channels.values.forEach { try? $0.play() }
+				}
+				pausedDueToInterruptionCount -= 1
 				
 			@unknown default:
 				logg("AudioMixer Unknown interruption kind")
