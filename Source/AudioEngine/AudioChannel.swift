@@ -50,7 +50,10 @@ public class AudioChannel: ObservablePlayer {
 	public var isLoopable = false
 
 	//private var availablePlayers: Set<Player> = []
-	private var currentPlayer: AudioSource? { didSet { self.currentTrack = currentPlayer?.track }}
+	private var currentPlayer: AudioSource? {
+		willSet { if newValue == nil, fadingOutPlayer !== currentPlayer { currentPlayer?.reset() }}
+		didSet { self.currentTrack = currentPlayer?.track }
+	}
 	private var fadingOutPlayer: AudioSource?
 	private weak var transitionTimer: Timer?
 	private var players: [AudioSource] { [currentPlayer, fadingOutPlayer].compactMap { $0 }}

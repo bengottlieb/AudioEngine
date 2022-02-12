@@ -34,12 +34,16 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 	}
 	
 	func handleInterruption(note: Notification) {
+		
+		
+		
 		if let type = note.interruptionType {
 			switch type {
 			case .began:
 				logg("AudioMixer Interrruption began")
 				if !isPlaying { return }
-				pause(outro: .abrupt, completion: nil)
+				//pause(outro: .abrupt, completion: nil)		// for some reason, this pause is conflicting with the system's own pause.
+				// removing it seems to fix the problem with white noise not ending later.
 				pausedDueToInterruptionCount += 1
 				
 			case .ended:
