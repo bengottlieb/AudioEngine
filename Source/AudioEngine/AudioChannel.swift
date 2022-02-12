@@ -101,7 +101,6 @@ public class AudioChannel: ObservablePlayer {
 			self.currentPlayer = nil
 		}
 		
-		if let index = currentTrackIndex, index <= queue.count { currentTrackIndex = nil }
 		if let pausedAt = self.pausedAt {
 			self.pausedAt = nil
 			let pauseDuration = abs(pausedAt.timeIntervalSinceNow)
