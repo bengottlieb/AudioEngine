@@ -98,6 +98,7 @@ public protocol AudioPlayer: AnyObject, AudioReporting {
 	var duration: TimeInterval? { get }
 	var effectiveDuration: TimeInterval? { get }			// taking into account any loops
 	var isLoopable: Bool { get }
+    func setVolume(_ volume: Double, fadeDuration: TimeInterval)
 }
 
 public protocol ObservablePlayer: AudioPlayer, ObservableObject {

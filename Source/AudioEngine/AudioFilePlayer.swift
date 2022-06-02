@@ -41,6 +41,10 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	deinit {
 		self.reset()
 	}
+    
+    public func setVolume(_ volume: Double, fadeDuration: TimeInterval = 0.2) {
+        player?.setVolume(Float(volume), fadeDuration: fadeDuration)
+    }
 	
 	var currentTimeValue = CurrentValueSubject<TimeInterval, Never>(0)
 	lazy var progressPublisher: AnyPublisher<TimeInterval, Never> = currentTimeValue.eraseToAnyPublisher()

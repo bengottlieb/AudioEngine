@@ -32,11 +32,12 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 			}.store(in: &cancelBag)
 		
 	}
-	
+
+    public func setVolume(_ volume: Double, fadeDuration: TimeInterval = 0.2) {
+        channels.values.forEach { $0.setVolume(volume, fadeDuration: fadeDuration) }
+    }
+
 	func handleInterruption(note: Notification) {
-		
-		
-		
 		if let type = note.interruptionType {
 			switch type {
 			case .began:

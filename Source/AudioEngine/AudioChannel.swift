@@ -82,6 +82,10 @@ public class AudioChannel: ObservablePlayer {
 		self.name = name
 	}
 	
+    public func setVolume(_ volume: Double, fadeDuration: TimeInterval = 0.2) {
+        players.forEach { $0.setVolume(volume, fadeDuration: fadeDuration) }
+    }
+    
 	public func play(track: AudioTrack? = nil, loop: Bool? = nil, transition: AudioTrack.Transition = .default, completion: (() -> Void)? = nil) throws {
 		assert(Thread.isMainThread, "AudioChannel.play(track:transition:completion) must be called on the main thread")
 		if let newTrack = track {
