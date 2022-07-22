@@ -139,6 +139,7 @@ public class AudioChannel: ObservablePlayer {
 	}
 	
 	public func pause(outro: AudioTrack.Segue?, completion: (() -> Void)? = nil) {
+		guard isPlaying else { return }
 		if self.state.contains(.outroing), outro != .abrupt { return }
 		if (self.pausedAt != nil || self.startedAt == nil), !isPlaying {
 			completion?()
