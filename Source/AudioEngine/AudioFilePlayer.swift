@@ -150,11 +150,10 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func pause(outro: AudioTrack.Segue? = nil, completion: (() -> Void)? = nil) {
-		guard self.isPlaying || player?.isPlaying == true else {
+		guard let track = self.track, self.isPlaying || player?.isPlaying == true else {
 			completion?()
 			return
 		}
-		guard let track = self.track else { return }
 		let segue = outro ?? self.outro ?? .default
 		let outroDuration = track.duration(of: segue, in: channel?.queue)
 
@@ -163,7 +162,10 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 			self.state.remove([.playing, .introing, .outroing])
 			self.stopPlayer()
 			self.player?.volume = 0.0
-			if !isPlaying { return }
+			if !isPlaying {
+				completion?()
+				return
+			}
 		} else {
 			if self.pausedAt == nil { self.pausedAt = Date(timeIntervalSinceNow: segue.duration) }
 			self.invalidateTimers()
