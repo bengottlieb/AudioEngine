@@ -16,6 +16,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	var endedAt: Date?
 	var pausedAt: Date?
 	var muteFactor: Float = 0.0
+	var totalPauseTime = 0.0
 	var hasSentFinished = true
 	weak var channel: AudioChannel?
 	var id: String { track?.id ?? UUID().uuidString }
@@ -64,6 +65,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 		guard let track = incomingTrack ?? self.track else { return }
 		if let pausedAt = self.pausedAt {
 			let delta = abs(pausedAt.timeIntervalSinceNow)
+			totalPauseTime += delta
 			self.pausedAt = nil
 			
 			if transition.duration > 0 {
@@ -193,6 +195,7 @@ class AudioFilePlayer: NSObject, ObservablePlayer, URLLocatable {
 	}
 	
 	func reset() {
+		totalPauseTime = 0
 		pause(outro: .abrupt)
 		didFinishPlaying()
 		state = []
@@ -315,7 +318,7 @@ extension AudioFilePlayer: AudioSource {
 	var timeElapsed: TimeInterval {
 		guard let startedAt = startedAt else { return 0 }
 		
-		let total = abs(startedAt.timeIntervalSinceNow)
+		let total = abs(startedAt.timeIntervalSinceNow) - totalPauseTime
 		if let paused = pausedAt { return total - abs(paused.timeIntervalSinceNow) }
 		return total
 	}

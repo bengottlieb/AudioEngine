@@ -112,7 +112,7 @@ public class AudioChannel: ObservablePlayer {
 			if let transitionAt = self.willTransitionAt {
 				willTransitionAt = transitionAt.addingTimeInterval(pauseDuration)
 				transitionTimer = Timer.scheduledTimer(withTimeInterval: abs(willTransitionAt!.timeIntervalSinceNow), repeats: false) { _ in
-                    self.startNextTrack(transition: transition)
+					self.startNextTrack(transition: transition, fromUI: true)
 				}
 			}
 			logg("resumed at: \(Date()), total pause time: \(self.totalPauseTime), time remaining: \(self.timeRemaining.durationString(style: .centiseconds))")
@@ -123,7 +123,7 @@ public class AudioChannel: ObservablePlayer {
 			self.currentDuration = queue.totalDuration(crossFade: self.shouldCrossFade, intro: self.defaultChannelFadeIn, outro: self.defaultChannelFadeOut)
 			self.startedAt = Date()
 			logg("starting channel \(self.name) at \(self.startedAt!)", .verbose)
-			self.startNextTrack(transition: transition)
+			self.startNextTrack(transition: transition, fromUI: true)
 			logg("done setting up channel \(self.name)", .verbose)
 		}
 		DispatchQueue.main.asyncAfter(deadline: .now() + transition.duration) { completion?() }
@@ -248,9 +248,9 @@ public class AudioChannel: ObservablePlayer {
 		self.startedAt = nil
 	}
 	
-    func startNextTrack(transition: AudioTrack.Transition = .default) {
+	func startNextTrack(transition: AudioTrack.Transition = .default, fromUI: Bool = false) {
 		var nextIndex = 0
-		if let current = self.currentTrackIndex {
+		if let current = self.currentTrackIndex, isPlaying || !fromUI {
 			nextIndex = current + 1
 			if queue.useLoops, nextIndex >= queue.count {
 				nextIndex = 0
@@ -284,7 +284,7 @@ public class AudioChannel: ObservablePlayer {
             if queue.useLoops, queue.count == 1, currentPlayer is LoopableAudioPlayer {
             } else {
                 transitionTimer = Timer.scheduledTimer(withTimeInterval: transitionTime, repeats: false, block: { _ in
-                    self.startNextTrack(transition: transition)
+						 self.startNextTrack(transition: transition, fromUI: false)
                 })
             }
 		} catch {
