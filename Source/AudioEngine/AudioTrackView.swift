@@ -68,7 +68,7 @@ public struct AudioTrackView: View {
 					Waveform(samples: samples.samples, range: samples.range, spacing: spacing)
 						.stroke(lineWidth: 0.5)
 				} else {
-					ActivityIndicatorView()
+					ProgressView()
 				}
 			}
 			.onAppear {

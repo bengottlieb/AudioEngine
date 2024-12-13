@@ -6,6 +6,11 @@
 //
 
 import SwiftUI
+import Swift
+
+func LOG(_ value: Double) -> Double {
+	log(value)
+}
 
 public struct Waveform: Shape {
 	public let samples: [Double]
@@ -64,7 +69,8 @@ public struct Waveform: Shape {
 				drawingAmplitude = max(minimumGraphAmplitude, invertedDbSample * halfHeight)
 
 			case .log:
-				drawingAmplitude = sample > baseline ? CGFloat(log(sample - baseline) ) * (rect.size.height / 10) : 1
+				let delta: Double = sample - baseline
+				drawingAmplitude = sample > baseline ? CGFloat(LOG(delta) ) * (rect.size.height / 10) : 1
 
 			case .scaled:
 				drawingAmplitude = abs(CGFloat(amplitude)) * halfHeight

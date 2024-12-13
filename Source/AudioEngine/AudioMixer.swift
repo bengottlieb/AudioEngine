@@ -47,7 +47,7 @@ public class AudioMixer: ObservableObject, AudioPlayer {
 				pausedDueToInterruptionCount += 1
 				
 			case .ended:
-				logg("AudioMixer Interrruption ended (\(pausedDueToInterruptionCount > 0 ? "from interruption" : "non-interruption based"))")
+				logg("AudioMixer Interrruption ended (\(self.pausedDueToInterruptionCount > 0 ? "from interruption" : "non-interruption based"))")
 				if pausedDueToInterruptionCount == 0 { return }
 				DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
 					if self.pausedDueToInterruptionCount > 0 { return }
