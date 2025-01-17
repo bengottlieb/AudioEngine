@@ -18,13 +18,13 @@ public struct Waveform: Shape {
 	public var invertSamples = true
 	public var style = Style.vertical
 	public var minSpacing: CGFloat = Waveform.defaultSpacing
-	public enum DrawingStyle: String, CaseIterable { case classic, log, scaled, linear }
+	public enum DrawingStyle: String, CaseIterable, Sendable { case classic, log, scaled, linear }
 
 	public static func width<T>(for samples: [T], spacing: CGFloat = Waveform.defaultSpacing) -> CGFloat {
 		CGFloat(samples.count) * spacing
 	}
 
-	public enum Style { case vertical, line }
+	public enum Style: Sendable { case vertical, line }
 	public static var defaultSpacing: CGFloat = 3
 	public let baseline = 40.0
 	public var drawingStyle = DrawingStyle.classic
