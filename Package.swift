@@ -18,7 +18,7 @@ let package = Package(
     ],
     dependencies: [
 		.package(url: "https://github.com/ios-tooling/Suite.git", from: "1.1.17"),
-		.package(url: "https://github.com/ios-tooling/Convey.git", from: "2.3.1"),
+		.package(url: "https://github.com/ios-tooling/Convey.git", from: "3.0.9"),
 
     ],
     targets: [

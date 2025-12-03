@@ -237,6 +237,16 @@ public class AudioChannel: ObservablePlayer {
 			try? self.play(transition: .default)
 		}
 	}
+	
+	public var currentTrackProgress: TimeInterval {
+		get {
+			guard let duration else { return 0 }
+			return timeElapsed / duration
+		}
+		set {
+			currentPlayer?.seekTo(percent: newValue)
+		}
+	}
 		
 	public func enqueue(silence duration: TimeInterval) { self.enqueue(track: .silence(duration: duration)) }
 	
